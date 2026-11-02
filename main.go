@@ -1,0 +1,70 @@
+// Herdr is a window for herdr-core: spaces, tabs and panes of terminals and
+// agents, drawn with MyGo's native UI.
+package main
+
+import (
+	"log"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
+
+	"herdr-mygo/internal/herdr"
+	myui "herdr-mygo/internal/ui"
+)
+
+func main() {
+	myui.RegisterFonts()
+	theme := myui.ThemeByName("graphite")
+	app := myui.NewApp(nil, theme)
+	mygo.App.WhenReady(func() {
+		point := mygo.Point{X: 12, Y: 16}
+		app.Win = mygo.NewWindow(mygo.WindowOptions{
+			Title:                "Herdr",
+			Width:                1280,
+			Height:               820,
+			StateKey:             "main",
+			TitleBarStyle:        mygo.TitleBarHidden,
+			TrafficLightPosition: &point,
+			BackgroundColor:      "#131518",
+			Content:              ui.View(app.View),
+		})
+		session, err := herdr.Connect("", app.Repaint)
+		if err != nil {
+			app.Fail(err)
+			return
+		}
+		app.Attach(session)
+		if overlay := os.Getenv("HERDR_MYGO_OVERLAY"); overlay != "" {
+			app.OpenOverlay(overlay)
+		}
+		if shot := os.Getenv("HERDR_MYGO_SHOT"); shot != "" {
+			go func() {
+				delay := 4 * time.Second
+				if v := os.Getenv("HERDR_MYGO_SHOT_DELAY"); v != "" {
+					if secs, err := strconv.Atoi(v); err == nil {
+						delay = time.Duration(secs) * time.Second
+					}
+				}
+				time.Sleep(delay)
+				png, err := app.Win.CapturePage()
+				if err != nil {
+					log.Printf("capture: %v", err)
+				} else if err := os.WriteFile(shot, png, 0o644); err != nil {
+					log.Printf("capture: %v", err)
+				} else {
+					log.Printf("captured %s", shot)
+				}
+				if os.Getenv("HERDR_MYGO_EXIT") != "" {
+					app.Win.Close()
+				}
+			}()
+		}
+	})
+	if err := mygo.App.Run(); err != nil {
+		log.Fatal(err)
+	}
+	os.Exit(0)
+}
