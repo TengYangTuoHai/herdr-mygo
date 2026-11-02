@@ -572,6 +572,13 @@ func (s *Session) ensureFocusLocked() {
 // agentsLocked lists live terminals that report a status, in space, tab,
 // pane order.
 func (s *Session) agentsLocked() []*Agent {
+	// Only the shown tab owns the keyboard: every other tab keeps a focus of
+	// its own, so marking those would light up one agent per tab.
+	shownSpace, shownTab := s.activeLocked()
+	shownTabID := ""
+	if shownTab != nil {
+		shownTabID = shownTab.ID
+	}
 	var out []*Agent
 	for _, sp := range s.spaces {
 		for ti, t := range sp.Tabs {
@@ -599,7 +606,8 @@ func (s *Session) agentsLocked() []*Agent {
 					Title:     term.Title,
 					Seq:       term.Turn,
 					Pinned:    term.Labels["herdr.pinned"] == "true",
-					Focused:   s.tabs[t.ID] != nil && s.tabs[t.ID].focused == b.ID,
+					Focused: shownSpace != nil && shownSpace.ID == sp.ID && shownTabID == t.ID &&
+						s.tabs[t.ID] != nil && s.tabs[t.ID].focused == b.ID,
 				}
 				if app != "" {
 					a.App = &app
@@ -1102,6 +1110,7 @@ func (s *Session) FocusPane(pane string) {
 				v.focused = pane
 			}
 			s.active = sp.ID
+			s.activeTab[sp.ID] = t.ID
 			s.markSeenLocked(t.Root.find(pane).terminal())
 			go func() { s.changed() }()
 			return
@@ -1120,6 +1129,7 @@ func (s *Session) FocusTerminal(addr string) bool {
 						v.focused = b.ID
 					}
 					s.active = sp.ID
+					s.activeTab[sp.ID] = t.ID
 					s.markSeenLocked(addr)
 					s.mu.Unlock()
 					s.changed()

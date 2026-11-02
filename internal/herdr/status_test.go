@@ -86,6 +86,62 @@ func TestAgentsListShowsAReportedPane(t *testing.T) {
 	}
 }
 
+// Two agents in one space, each in its own tab: only the shown tab's pane is
+// the focused agent, and focusing the other one shows its tab.
+func TestAgentsListFocusesOneTabOfASpace(t *testing.T) {
+	var one, two Terminal
+	for _, rec := range []string{
+		`{"address":"t10","state":"live","labels":{},"status":{"state":"working"},"turn":0}`,
+		`{"address":"t11","state":"live","labels":{},"status":{"state":"working"},"turn":0}`,
+	} {
+		var term Terminal
+		if err := json.Unmarshal([]byte(rec), &term); err != nil {
+			t.Fatal(err)
+		}
+		if term.Address == "t10" {
+			one = term
+		} else {
+			two = term
+		}
+	}
+	p1 := &Node{ID: "p1", Type: "block", Content: &NodeContent{Terminal: one.Address}}
+	p2 := &Node{ID: "p2", Type: "block", Content: &NodeContent{Terminal: two.Address}}
+	tb1 := &Tab{ID: "tb1", Root: &Node{ID: "tb1", Type: "row", Children: []*Node{p1}}}
+	tb2 := &Tab{ID: "tb2", Root: &Node{ID: "tb2", Type: "row", Children: []*Node{p2}}}
+	s := &Session{
+		spaces:    []*Space{{ID: "sp1", Tabs: []*Tab{tb1, tb2}}},
+		terminals: map[string]*Terminal{"t10": &one, "t11": &two},
+		order:     []string{"t10", "t11"},
+		homes:     map[string]string{},
+		tabs:      map[string]*tabView{"tb1": {focused: "p1"}, "tb2": {focused: "p2"}},
+		activeTab: map[string]string{"sp1": "tb1"},
+		query:     map[string]string{},
+		seen:      map[string]bool{},
+	}
+	s.mu.Lock()
+	list := s.agentsLocked()
+	s.mu.Unlock()
+	if len(list) != 2 {
+		t.Fatalf("agents: got %d, want 2", len(list))
+	}
+	for _, ag := range list {
+		if want := ag.Pane == "p1"; ag.Focused != want {
+			t.Fatalf("agent %s focus: got %v, want %v", ag.Pane, ag.Focused, want)
+		}
+	}
+	if !s.FocusTerminal("t11") {
+		t.Fatal("t11 must focus")
+	}
+	s.mu.Lock()
+	list = s.agentsLocked()
+	s.mu.Unlock()
+	for _, ag := range list {
+		if want := ag.Pane == "p2"; ag.Focused != want {
+			t.Fatalf("after focusing t11, agent %s focus: got %v, want %v", ag.Pane, ag.Focused, want)
+		}
+	}
+}
+
 // The status event carries the object under "status" and `null` clears it.
 func TestStatusEventTakesTheObject(t *testing.T) {
 	s := sessionWithOnePane(reportedRecord)
