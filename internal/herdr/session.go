@@ -34,6 +34,7 @@ type Session struct {
 	versions      map[string]uint64
 	machines      []*Machine
 	machineByName map[string]*Machine
+	machineOrder  []string // the order the person dragged the groups into
 	machineSig    string
 	homes         map[string]string
 	wantActive    string

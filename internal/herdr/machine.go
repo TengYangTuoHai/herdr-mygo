@@ -33,7 +33,8 @@ func (m *Machine) Connected() bool { return m.State == "connected" }
 // RefreshMachines reads machine.list again, on the caller's goroutine.
 func (s *Session) RefreshMachines() { s.refreshMachines() }
 
-// Machines returns the machines this core knows, this computer not among them.
+// Machines returns the machines this core knows, this computer not among
+// them, in the order the person dragged their groups into.
 func (s *Session) Machines() []*Machine {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -42,7 +43,52 @@ func (s *Session) Machines() []*Machine {
 		cp := *m
 		out = append(out, &cp)
 	}
+	rank := make(map[string]int, len(s.machineOrder))
+	for i, name := range s.machineOrder {
+		rank[name] = i
+	}
+	// Machines nobody dragged rank the same, so they keep machine.list's
+	// order after the ones that were dragged.
+	sort.SliceStable(out, func(i, j int) bool {
+		return machineRank(rank, out[i].Name) < machineRank(rank, out[j].Name)
+	})
 	return out
+}
+
+// machineRank is where a machine sits among the dragged ones; machines
+// never dragged rank after all of them.
+func machineRank(rank map[string]int, name string) int {
+	if at, ok := rank[name]; ok {
+		return at
+	}
+	return len(rank) + 1
+}
+
+// MoveMachine puts one machine's group at a place (1 = first remote
+// machine), as dragging its header does.
+func (s *Session) MoveMachine(name string, index int) {
+	machines := s.Machines()
+	names := make([]string, 0, len(machines))
+	for _, m := range machines {
+		names = append(names, m.Name)
+	}
+	from := -1
+	for i, n := range names {
+		if n == name {
+			from = i
+		}
+	}
+	if from < 0 {
+		return
+	}
+	names = append(names[:from], names[from+1:]...)
+	at := clamp(index-1, 0, len(names))
+	names = append(names[:at], append([]string{name}, names[at:]...)...)
+	s.mu.Lock()
+	s.machineOrder = names
+	s.mu.Unlock()
+	s.SaveView()
+	s.changed()
 }
 
 // MachineNamed returns one machine, nil when unknown.

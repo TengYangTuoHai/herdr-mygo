@@ -48,11 +48,61 @@ func (a *App) spaces(c *ui.Context, rail bool) {
 					names = append(names, m.Name)
 				}
 				for _, name := range names {
-					a.machineGroup(c, name, places, rail)
+					a.machineGroup(c, name, places, machines, rail)
 				}
 			})
 		})
 	})
+}
+
+// sideDrag is a sidebar row being dragged: a space (Kind "space", From its
+// machine's name) or a machine's header (Kind "machine", ID its name).
+type sideDrag struct {
+	Kind string
+	ID   string
+	From string
+}
+
+// dropIndex is the place (1-based) MoveSpace and MoveMachine want: the half
+// of the row the pointer let go on picks before or after it, and a target
+// lower down moves up a place as the dragged one leaves the list.
+func dropIndex(row ui.Element, height float32, from, to int) int {
+	_, y, _ := row.PointerPosition()
+	return dropIndexAt(y, height, from, to)
+}
+
+// dropIndexAt is dropIndex once the pointer's height in the row is known.
+func dropIndexAt(y, height float32, from, to int) int {
+	at := to - 1
+	if y > height/2 {
+		at++
+	}
+	if from < to {
+		at--
+	}
+	return at + 1
+}
+
+// shownIndex is the 1-based place a space has in the sidebar, 0 when it is
+// not there.
+func shownIndex(places []*herdr.Space, id string) int {
+	for _, sp := range places {
+		if sp.ID == id {
+			return sp.Index
+		}
+	}
+	return 0
+}
+
+// machineAt is a machine's place among the sidebar's groups (1 = first
+// remote machine), 0 when it is not there.
+func machineAt(machines []*herdr.Machine, name string) int {
+	for i, m := range machines {
+		if m.Name == name {
+			return i + 1
+		}
+	}
+	return 0
 }
 
 // spaceRow is one space: its avatar, name, and the unusual git after it.
@@ -100,6 +150,30 @@ func (a *App) spaceRow(c *ui.Context, sp *herdr.Space, index int, rail bool, pla
 	})
 	if row.Clicked() {
 		a.S.SelectSpace(0, sp.ID)
+	}
+	// Dragging a row reorders the spaces of its own machine; a space never
+	// leaves the machine it runs on.
+	machine := herdr.SpaceMachine(sp)
+	row.Drag(sideDrag{Kind: "space", ID: sp.ID, From: machine})
+	// The node takes one kind of value, so space rows and machine headers
+	// share the one sideDrag type and check what was dropped.
+	if d, ok := ui.Drop[sideDrag](row); ok {
+		switch {
+		case d.Kind == "space" && d.ID != sp.ID && d.From == machine:
+			if from := shownIndex(places, d.ID); from > 0 {
+				a.S.MoveSpace(d.ID, dropIndex(row, 30, from, sp.Index))
+			}
+		case d.Kind == "machine" && d.ID != machine && machine != "":
+			// A machine let go over another machine's rows lands beside that
+			// machine's group.
+			machines := a.S.Machines()
+			if from := machineAt(machines, d.ID); from > 0 {
+				a.S.MoveMachine(d.ID, dropIndex(row, 30, from, machineAt(machines, machine)))
+			}
+		}
+	}
+	if d, ok := ui.DragOver[sideDrag](row); ok && d.Kind == "space" && d.ID != sp.ID && d.From == machine {
+		row.Border(1, t.Accent)
 	}
 	if row.RightClicked() {
 		x, y, _ := row.PointerPosition()
@@ -398,7 +472,7 @@ func markColor(name string) string {
 
 // machineGroup draws one machine's spaces under its header, once a second
 // machine is known.
-func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, rail bool) {
+func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, machines []*herdr.Machine, rail bool) {
 	t := a.T
 	var mine []*herdr.Space
 	for _, sp := range places {
@@ -406,10 +480,12 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ra
 			mine = append(mine, sp)
 		}
 	}
+	rank := 0
 	var info *herdr.Machine
-	for _, m := range a.S.Machines() {
+	for i, m := range machines {
 		if m.Name == name {
 			info = m
+			rank = i + 1
 		}
 	}
 	connected := name == "" || (info != nil && info.Connected())
@@ -471,6 +547,26 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ra
 			delete(a.foldedMachines, name)
 		} else {
 			a.foldedMachines[name] = true
+		}
+	}
+	// A remote machine's header drags its group up or down the sidebar, and
+	// takes a space dragged onto it at the top of its list.
+	if name != "" && !rail {
+		head.Drag(sideDrag{Kind: "machine", ID: name})
+		if d, ok := ui.Drop[sideDrag](head); ok {
+			switch {
+			case d.Kind == "machine" && d.ID != name:
+				if from := machineAt(machines, d.ID); from > 0 {
+					a.S.MoveMachine(d.ID, dropIndex(head, 26, from, rank))
+				}
+			case d.Kind == "space" && d.From == name && len(mine) > 0:
+				a.S.MoveSpace(d.ID, mine[0].Index)
+			}
+		}
+		if d, ok := ui.DragOver[sideDrag](head); ok {
+			if (d.Kind == "machine" && d.ID != name) || (d.Kind == "space" && d.From == name) {
+				head.Border(1, t.Accent)
+			}
 		}
 	}
 	if folded {

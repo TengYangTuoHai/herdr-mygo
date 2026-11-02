@@ -18,14 +18,15 @@ func AppHome() string {
 	return filepath.Join(home, ".config", "herdr-app")
 }
 
-// viewFile is what this screen keeps: the shown space, each space's tab and
-// each tab's focus.
+// viewFile is what this screen keeps: the shown space, each space's tab,
+// each tab's focus and the order the machine groups were dragged into.
 type viewFile struct {
-	Active string                    `json:"active"`
-	Spaces map[string]string         `json:"spaces"`
-	Tabs   map[string]viewTab        `json:"tabs"`
-	Recent []map[string]string       `json:"recent,omitempty"`
-	Seen   map[string]map[string]any `json:"attention,omitempty"`
+	Active   string                    `json:"active"`
+	Spaces   map[string]string         `json:"spaces"`
+	Tabs     map[string]viewTab        `json:"tabs"`
+	Machines []string                  `json:"machines,omitempty"`
+	Recent   []map[string]string       `json:"recent,omitempty"`
+	Seen     map[string]map[string]any `json:"attention,omitempty"`
 }
 
 type viewTab struct {
@@ -47,6 +48,7 @@ func (s *Session) LoadView() {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.machineOrder = v.Machines
 	for _, sp := range s.spaces {
 		if id, ok := v.Spaces[sp.ID]; ok {
 			s.activeTab[sp.ID] = id
@@ -74,7 +76,7 @@ func (s *Session) LoadView() {
 // SaveView writes this screen's selection, focus and zoom, as Herdr does.
 func (s *Session) SaveView() {
 	s.mu.Lock()
-	v := viewFile{Active: s.active, Spaces: map[string]string{}, Tabs: map[string]viewTab{}}
+	v := viewFile{Active: s.active, Spaces: map[string]string{}, Tabs: map[string]viewTab{}, Machines: s.machineOrder}
 	for id, tab := range s.activeTab {
 		v.Spaces[id] = tab
 	}

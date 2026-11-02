@@ -20,6 +20,7 @@ func main() {
 	theme := myui.ThemeByName("graphite")
 	app := myui.NewApp(nil, theme)
 	mygo.App.WhenReady(func() {
+		myui.InstallMenu()
 		point := mygo.Point{X: 12, Y: 16}
 		app.Win = mygo.NewWindow(mygo.WindowOptions{
 			Title:                "Herdr",

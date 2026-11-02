@@ -128,7 +128,12 @@ numbers + status, footer icon only.
 letter (10.5 bold white), name 13, and only unusual git at the right
 (11.5 dim: repo · branch ↑ahead ↓behind, skipping the name, master/main).
 Selected uses `selected`, hover `hover`; drag reorders (accent line at the
-drop edge); right-click menu Rename / New worktree / Open worktree / Close.
+drop edge) among the spaces of the same machine, and a space dropped on its
+machine's header goes to the top of that list; right-click menu Rename / New
+worktree / Open worktree / Close. Machines with spaces, or with more than one
+machine known, get a header h26 `px8 gap7` (server 13, name 11 dim, + 16×16,
+state dot 6, chevron 11) that folds its list; dragging a remote header moves
+its group up or down, and the order is kept in `view.json`'s `machines`.
 Worktrees indent under their checkout with `├─`/`└─`. Empty/unknown:
 "Loading…" h28.
 
@@ -236,8 +241,8 @@ Keys come from `keys.json` (sections `global`, `layout:<name>`, `terminal`,
 |---|---|---|---|---|
 | ⌘Q | app.quit | | ⌘D | pane.split:right |
 | ⌘H | app.hide | | ⌘⇧D | pane.split:down |
-| ⌘T | tab.new | | ⌘⇧W | pane.close |
-| ⌘W | tab.close | | ⌘⇧Enter | pane.zoom |
+| ⌘T | tab.new | | ⌘W | pane.close |
+| ⌘⇧W | tab.close | | ⌘⇧Enter | pane.zoom |
 | ⌃Tab / ⌃⇧Tab | tab.next / prev | | ⌘⌥←↑→↓ | pane.go |
 | ⌘⇧] / ⌘⇧[ | tab.next / prev | | ⌘⌥⇧←↑→↓ | pane.swap |
 | ⌘⌥] / ⌘⌥[ | space.next / prev | | F2 | tab.rename |
@@ -252,7 +257,8 @@ Terminal section: ⌘C/⌘V copy/paste, ⌃V paste image, ⌥←/→/⌫ and ⌘
 send readline escapes. Plain Ctrl+letters go to the program.
 
 Mouse: click a space to select; click a tab to select; double-click a tab to
-rename; right-click for menus; drag a space to reorder; drag a tab to move;
+rename; right-click for menus; drag a space to reorder it, or a machine's
+header to move its group; drag a tab to move;
 drag the sidebar edge to resize (44–480); drag the panes' top-center grip to
 swap or place panes (Escape cancels); drag the brand or tab bar to move the
 window. In terminals: Ghostty's selection, Option-drag rectangle, Cmd-click
