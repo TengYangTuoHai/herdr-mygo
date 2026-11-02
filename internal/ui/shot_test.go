@@ -28,6 +28,9 @@ func TestShot(t *testing.T) {
 	if overlay := os.Getenv("SHOT_OVERLAY"); overlay != "" {
 		app.OpenOverlay(overlay)
 	}
+	if os.Getenv("SHOT_COLLAPSE") != "" {
+		app.agentsCollapsed = true
+	}
 	if panel := os.Getenv("SHOT_PANEL"); panel != "" {
 		app.OpenPanel(panel)
 	}

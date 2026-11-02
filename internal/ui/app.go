@@ -28,6 +28,10 @@ type App struct {
 	Zoom float32
 	// SidebarWidth is the sidebar's width in DIPs, 0 when it is the rail.
 	SidebarWidth float32
+	// splitRatio is the spaces list's share of the sidebar's two lists;
+	// agentsCollapsed folds the agents list to its header.
+	splitRatio      float32
+	agentsCollapsed bool
 
 	mu       sync.Mutex
 	terms    map[string]*paneTerm
@@ -74,6 +78,7 @@ func NewApp(s *herdr.Session, theme *Theme) *App {
 		S: s, T: theme,
 		Zoom:           1,
 		SidebarWidth:   268,
+		splitRatio:     0.5,
 		terms:          map[string]*paneTerm{},
 		starting:       map[string]bool{},
 		foldedMachines: map[string]bool{},
@@ -129,16 +134,84 @@ func (a *App) sidebar(c *ui.Context) {
 	t := a.T
 	width := a.SidebarWidth
 	rail := width < 160
+	footHeight := a.footerHeight(rail)
+	// listHeight is what the spaces and agents lists share, the divider aside.
+	listHeight := a.H - 46 - footHeight - 1
+	if listHeight < 90 {
+		listHeight = 90
+	}
+	spacesHeight := listHeight / 2
+	if !rail {
+		if a.agentsCollapsed {
+			spacesHeight = listHeight - 41
+		} else {
+			minSpaces, maxSpaces := splitLimits(listHeight)
+			spacesHeight = listHeight * a.splitRatio
+			if spacesHeight < minSpaces {
+				spacesHeight = minSpaces
+			}
+			if spacesHeight > maxSpaces {
+				spacesHeight = maxSpaces
+			}
+		}
+	}
 	ui.Column(c).Width(width).FillHeight().Background(t.Chrome).Children(func() {
 		a.brand(c, rail)
-		spacesHeight := (a.H - 46 - 69) / 2
-		if spacesHeight < 90 {
-			spacesHeight = 90
-		}
 		ui.Box(c).Height(spacesHeight).FillWidth().Children(func() { a.spaces(c, rail) })
+		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		ui.Box(c).Grow(1).FillWidth().Children(func() { a.agents(c, rail) })
 		a.footer(c, rail)
 	})
+	if !rail && !a.agentsCollapsed {
+		a.splitHandle(c, spacesHeight, listHeight)
+	}
+}
+
+// splitHandle drags the line between the spaces and agents lists.
+func (a *App) splitHandle(c *ui.Context, spacesHeight, listHeight float32) {
+	t := a.T
+	ui.Overlay(c, func() {
+		handle := ui.Box(c).Absolute().Top(46 + spacesHeight - 3).Left(0).
+			Width(a.SidebarWidth).Height(6).Cursor(ui.CursorResizeNS)
+		if handle.Hovered() {
+			handle.Background(Alpha(t.Accent, 0.35))
+		}
+		if dy, _, ok := handle.Dragged(); ok && listHeight > 0 {
+			minSpaces, maxSpaces := splitLimits(listHeight)
+			next := spacesHeight + dy
+			if next < minSpaces {
+				next = minSpaces
+			}
+			if next > maxSpaces {
+				next = maxSpaces
+			}
+			a.splitRatio = next / listHeight
+		}
+	})
+}
+
+// splitLimits keeps the spaces list tall enough to read, and leaves the
+// agents header and one section of its list showing, until the window is
+// too short for both.
+func splitLimits(listHeight float32) (min, max float32) {
+	min = 90
+	max = listHeight - 101
+	if max < min {
+		max = listHeight - 41
+		if max < 0 {
+			max = 0
+		}
+		min = max
+	}
+	return min, max
+}
+
+// footerHeight is the sidebar footer's height; the rail adds the expand row.
+func (a *App) footerHeight(rail bool) float32 {
+	if rail {
+		return 97
+	}
+	return 69
 }
 
 // brand is the row with the logo, search and the sidebar toggle.
@@ -233,14 +306,17 @@ func (a *App) toggleSidebar() {
 	a.Repaint()
 }
 
-// footer is Settings and Add machine.
+// footer is Settings, Add machine, and the rail's expand row.
 func (a *App) footer(c *ui.Context, rail bool) {
 	t := a.T
-	ui.Column(c).Height(69).FillWidth().Background(t.Chrome).Children(func() {
+	ui.Column(c).Height(a.footerHeight(rail)).FillWidth().Background(t.Chrome).Children(func() {
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		ui.Column(c).Grow(1).FillWidth().Padding(4, 8, 8, 8).Children(func() {
 			a.footerRow(c, "settings", "Settings", false, rail, func() { a.OpenOverlay("settings") })
 			a.footerRow(c, "plus", "Add machine", true, rail, func() { a.OpenOverlay("machine-add") })
+			if rail {
+				a.footerRow(c, "chevron-right", "Expand sidebar", true, rail, a.toggleSidebar)
+			}
 		})
 	})
 }
@@ -248,6 +324,9 @@ func (a *App) footer(c *ui.Context, rail bool) {
 func (a *App) footerRow(c *ui.Context, icon, label string, dim, rail bool, action func()) {
 	t := a.T
 	row := ui.Row(c).Height(28).FillWidth().PaddingX(8).Gap(9).Radius(8).AlignItems(ui.Center)
+	if rail {
+		row.Justify(ui.Center)
+	}
 	color := t.Muted
 	if dim {
 		color = t.Dim
