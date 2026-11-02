@@ -2,6 +2,7 @@ package ui
 
 import (
 	"io/fs"
+	"strings"
 	"sync"
 
 	"github.com/egoist/mygo/ui"
@@ -21,6 +22,9 @@ func loadIcons() {
 			continue
 		}
 		for _, e := range entries {
+			if !strings.HasSuffix(e.Name(), ".svg") {
+				continue
+			}
 			data, err := fs.ReadFile(assets.Files, dir+"/"+e.Name())
 			if err != nil {
 				continue

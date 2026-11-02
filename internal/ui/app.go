@@ -209,6 +209,21 @@ func (a *App) icon(c *ui.Context, name string, size float32, color ui.Color) {
 	ui.Icon(c, svg).Size(size, size).TextColor(color)
 }
 
+// programIcon draws what a terminal runs, as the app's program table says:
+// a full-color logo in its own colors, or a one-color glyph in color.
+func (a *App) programIcon(c *ui.Context, p herdr.ProgramInfo, size float32, color ui.Color) {
+	svg := iconSVG("program:" + p.Icon)
+	if svg == nil {
+		a.icon(c, "terminal", size, color)
+		return
+	}
+	if !p.Tint {
+		ui.Image(c, svg).Size(size, size).Fit(ui.Contain)
+		return
+	}
+	ui.Icon(c, svg).Size(size, size).TextColor(color)
+}
+
 func (a *App) toggleSidebar() {
 	if a.SidebarWidth < 160 {
 		a.SidebarWidth = 268
@@ -331,15 +346,19 @@ func (a *App) tab(c *ui.Context, tab *herdr.Tab, active bool) {
 		name = "Terminal"
 	}
 	status := ""
+	zoomed := false
+	lead := herdr.PaneInfo{Program: herdr.Program(nil)}
 	for _, p := range panes {
 		if p.Status != "" {
 			status = herdr.Worse(status, p.Status)
 		}
-	}
-	zoomed := false
-	for _, p := range panes {
 		if p.Zoomed {
 			zoomed = true
+		}
+		// The tab wears the program of its lead pane: the focused one, else the
+		// first (the app's mods/tabs.js lead()).
+		if lead.Terminal == "" || p.Focused {
+			lead = p
 		}
 	}
 	row := ui.Row(c).Height(29).PaddingX(10).Gap(7).Radius(7).AlignItems(ui.Center).Border(1, t.Chrome).Shrink(1)
@@ -353,7 +372,7 @@ func (a *App) tab(c *ui.Context, tab *herdr.Tab, active bool) {
 	}
 	row.Cursor(ui.CursorPointer)
 	row.Children(func() {
-		a.icon(c, "terminal", 14, t.Muted)
+		a.programIcon(c, lead.Program, 14, t.Muted)
 		label := name
 		if zoomed {
 			label += " Z"
@@ -549,15 +568,7 @@ func (a *App) paneHeader(c *ui.Context, p herdr.PaneInfo) {
 	hovered := row.Hovered()
 	row.Children(func() {
 		if p.Terminal != "" {
-			if p.Program.Icon != "" {
-				if svg := iconSVG("program:" + p.Program.Icon); svg != nil {
-					ui.Icon(c, svg).Size(14, 14).TextColor(t.Dim)
-				} else {
-					a.icon(c, "terminal", 14, t.Dim)
-				}
-			} else {
-				a.icon(c, "terminal", 14, t.Dim)
-			}
+			a.programIcon(c, p.Program, 14, t.Dim)
 		}
 		name := p.Title
 		if name == "" {

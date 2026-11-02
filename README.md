@@ -78,7 +78,10 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
 - Focus and zoom per tab, click to focus, accent focus border
 - Space/tab/pane commands: new, close, rename, move, select, next/prev,
   split right/down, close, zoom, focus/swap by direction
-- The agents list from terminals that report status (OSC 7501), by priority
+- The agents list from terminals that report status (OSC 7501), by priority,
+  each agent with its own logo: Herdr's program table's icons (Claude Code,
+  Codex, Pi, OpenCode, Grok, Gemini, …), full color where the mark is, and
+  DeepSeek's for `dsh-tui`/`dsh`
 - Command palette with fuzzy search, group headers and key chips
 - Go-to-space-or-tab picker, new-tab menu, right-click menus on spaces,
   tabs and panes, prompt dialogs, toasts

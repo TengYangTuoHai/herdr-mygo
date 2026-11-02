@@ -449,9 +449,14 @@ func (s *Session) applyEvent(kind, address string, data json.RawMessage) bool {
 		return true
 	case "status":
 		if f := fields["status"]; f != nil {
-			var word *string
-			_ = json.Unmarshal(f, &word)
-			t.Status = word
+			if string(f) == "null" {
+				t.Status = nil
+			} else {
+				var st Status
+				if json.Unmarshal(f, &st) == nil {
+					t.Status = &st
+				}
+			}
 		}
 		if f := fields["reported"]; f != nil {
 			_ = json.Unmarshal(f, &t.Reported)
@@ -575,9 +580,9 @@ func (s *Session) agentsLocked() []*Agent {
 				if term == nil || !term.Live() || term.Word() == "" || term.Word() == "unknown" {
 					continue
 				}
-				app := term.Agent
-				if app == "" && term.Foreground != nil {
-					app = term.Foreground.Name
+				app := ""
+				if apps := runningApps(term); len(apps) > 0 {
+					app = apps[0]
 				}
 				home := s.homes[SpaceMachine(sp)]
 				a := &Agent{

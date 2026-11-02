@@ -156,7 +156,7 @@ type Terminal struct {
 	Name       *string           `json:"name"`
 	Title      string            `json:"title"`
 	State      string            `json:"state"` // live, finished
-	Status     *string           `json:"status"`
+	Status     *Status           `json:"status"`
 	StatusMs   *int64            `json:"status_ms"`
 	Turn       int               `json:"turn"`
 	Keep       bool              `json:"keep"`
@@ -168,8 +168,35 @@ type Terminal struct {
 	Foreground *Foreground       `json:"foreground"`
 	Reported   bool              `json:"reported"`
 	Template   *string           `json:"template"`
-	Agent      string            `json:"agent"`
 	Where      string            `json:"where"`
+}
+
+// Status is what a program reported it is doing through OSC 7501: the core's
+// `status` object, one report. Words are the program's own; nothing is
+// translated.
+type Status struct {
+	State    string `json:"state"`          // idle, working, done, blocked or error
+	App      string `json:"app,omitempty"`  // the app it says it is
+	Kind     string `json:"kind,omitempty"` // permission, question or auth (blocked only)
+	Msg      string `json:"msg,omitempty"`
+	Title    string `json:"title,omitempty"`
+	Progress *int   `json:"progress,omitempty"` // 0..100 (working or blocked)
+}
+
+// Word is the state word the program reported, "" when it said nothing.
+func (st *Status) Word() string {
+	if st == nil {
+		return ""
+	}
+	return st.State
+}
+
+// app is the app the program said it is, "" when it did not say.
+func (st *Status) app() string {
+	if st == nil {
+		return ""
+	}
+	return st.App
 }
 
 // Foreground is the process in front of the terminal's shell.
@@ -181,12 +208,7 @@ type Foreground struct {
 }
 
 // Word returns the agent's reported word, "" when it reports none.
-func (t *Terminal) Word() string {
-	if t.Status != nil {
-		return *t.Status
-	}
-	return ""
-}
+func (t *Terminal) Word() string { return t.Status.Word() }
 
 // Live reports whether the terminal's program runs.
 func (t *Terminal) Live() bool { return t.State == "live" }
