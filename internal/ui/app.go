@@ -282,6 +282,18 @@ func (a *App) icon(c *ui.Context, name string, size float32, color ui.Color) {
 	ui.Icon(c, svg).Size(size, size).TextColor(color)
 }
 
+// spinner is the working indicator: the ring and its arc, turning once a
+// second. Loop keeps frames coming while it shows, so the window animates
+// only while some agent or pane is working.
+func (a *App) spinner(c *ui.Context, size float32, color ui.Color) {
+	svg := iconSVG("spinner")
+	if svg == nil {
+		return
+	}
+	spin := ui.Icon(c, svg).Size(size, size).TextColor(color)
+	spin.Rotate(spin.Loop("spin", time.Second, ui.Linear) * 360)
+}
+
 // programIcon draws what a terminal runs, as the app's program table says:
 // a full-color logo in its own colors, or a one-color glyph in color.
 func (a *App) programIcon(c *ui.Context, p herdr.ProgramInfo, size float32, color ui.Color) {
@@ -459,7 +471,7 @@ func (a *App) tab(c *ui.Context, tab *herdr.Tab, active bool) {
 		ui.Text(c, label).FontSize(12.8).TextColor(color).MaxWidth(170).Ellipsis("…")
 		switch status {
 		case "working":
-			a.icon(c, "spinner", 12, t.Working)
+			a.spinner(c, 12, t.Working)
 		case "blocked", "done":
 			ui.Box(c).Size(6, 6).Radius(3).Background(t.Status(status))
 		}
@@ -657,7 +669,7 @@ func (a *App) paneHeader(c *ui.Context, p herdr.PaneInfo) {
 		ui.Text(c, herdr.ShortFolder(p.Cwd)).FontSize(12).TextColor(t.Dim).Grow(1).Ellipsis("…")
 		switch p.Status {
 		case "working":
-			a.icon(c, "spinner", 12, t.Working)
+			a.spinner(c, 12, t.Working)
 		case "blocked":
 			ui.Box(c).Height(18).PaddingX(6).Radius(5).Background(Alpha(t.Blocked, 0.15)).Center().Children(func() {
 				ui.Text(c, "Needs you").FontSize(10.5).FontWeight(600).TextColor(t.Blocked)

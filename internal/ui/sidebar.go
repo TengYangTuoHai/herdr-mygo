@@ -491,7 +491,7 @@ func (a *App) agentStatus(c *ui.Context, word string) {
 	t := a.T
 	switch word {
 	case "working":
-		a.icon(c, "spinner", 12, t.Working)
+		a.spinner(c, 12, t.Working)
 	case "blocked":
 		ui.Box(c).Height(18).PaddingX(6).Radius(5).Center().Background(Alpha(t.Blocked, 0.15)).Children(func() {
 			ui.Text(c, "Needs you").FontSize(10.5).FontWeight(600).TextColor(t.Blocked)
