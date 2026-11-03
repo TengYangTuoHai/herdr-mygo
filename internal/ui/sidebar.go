@@ -12,22 +12,15 @@ import (
 var spaceColors = []string{"ansi6", "ansi3", "ansi4", "ansi5", "ansi2", "ansi1"}
 
 // spaces draws the Spaces list of the sidebar.
-func (a *App) spaces(c *ui.Context, rail bool) {
+func (a *App) spaces(c *ui.Context) {
 	t := a.T
 	statuses := a.spaceStatuses()
 	ui.Column(c).Fill().Background(t.Chrome).Children(func() {
-		if !rail {
-			header := ui.Row(c).Height(31).FillWidth().Padding(0, 10, 0, 16).AlignItems(ui.Center).Justify(ui.SpaceBetween)
-			header.Children(func() {
-				ui.Text(c, "Spaces").FontSize(11.5).TextColor(t.Dim)
-				a.iconButton(c, "plus", 26, func() { a.newSpace() })
-			})
-		} else {
-			ui.Row(c).Height(31).FillWidth().Justify(ui.Center).Children(func() {
-				a.iconButton(c, "plus", 26, func() { a.newSpace() })
-			})
-			a.railAlert(c)
-		}
+		header := ui.Row(c).Height(31).FillWidth().Padding(0, 10, 0, 16).AlignItems(ui.Center).Justify(ui.SpaceBetween)
+		header.Children(func() {
+			ui.Text(c, "Spaces").FontSize(11.5).TextColor(t.Dim)
+			a.iconButton(c, "plus", 26, "New space", func() { a.newSpace() })
+		})
 		ui.Scroll(c).Grow(1).Padding(0, 8, 14, 8).Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				places := a.S.Places()
@@ -38,21 +31,9 @@ func (a *App) spaces(c *ui.Context, rail bool) {
 					})
 					return
 				}
-				if rail {
-					prev := ""
-					for i, sp := range places {
-						machine := herdr.SpaceMachine(sp)
-						if i > 0 && machine != prev {
-							a.railDivider(c)
-						}
-						a.spaceRow(c, sp, true, places, statuses)
-						prev = machine
-					}
-					return
-				}
 				if len(machines) == 0 {
 					for _, sp := range places {
-						a.spaceRow(c, sp, false, places, statuses)
+						a.spaceRow(c, sp, places, statuses)
 					}
 					return
 				}
@@ -77,39 +58,6 @@ func (a *App) spaceStatuses() map[string]string {
 		}
 	}
 	return out
-}
-
-// railAlert is the blocked count at the top of the rail; clicking it goes to
-// the first agent that needs you.
-func (a *App) railAlert(c *ui.Context) {
-	t := a.T
-	n := 0
-	var first *herdr.Agent
-	for _, ag := range a.S.Agents() {
-		if ag.Status == "blocked" {
-			n++
-			if first == nil {
-				first = ag
-			}
-		}
-	}
-	if n == 0 {
-		return
-	}
-	ui.Row(c).Height(28).FillWidth().Justify(ui.Center).Children(func() {
-		pill := ui.Row(c).Height(22).PaddingX(6).Gap(3).Radius(6).Background(Alpha(t.Blocked, 0.15)).AlignItems(ui.Center)
-		pill.Cursor(ui.CursorPointer)
-		if pill.Hovered() {
-			pill.Background(Alpha(t.Blocked, 0.24))
-		}
-		pill.Children(func() {
-			ui.Text(c, "!").FontSize(10.5).FontWeight(700).TextColor(t.Blocked)
-			ui.Text(c, itoa(n)).FontSize(10.5).FontWeight(600).TextColor(t.Blocked)
-		})
-		if pill.Clicked() && first != nil {
-			a.S.FocusPane(first.Pane)
-		}
-	})
 }
 
 // sideDrag is a sidebar row being dragged: a space (Kind "space", From its
@@ -163,12 +111,8 @@ func machineAt(machines []*herdr.Machine, name string) int {
 }
 
 // spaceRow is one space: its avatar, name, status dot and the unusual git
-// after it. In the rail it is just the avatar and its status badge.
-func (a *App) spaceRow(c *ui.Context, sp *herdr.Space, rail bool, places []*herdr.Space, statuses map[string]string) {
-	if rail {
-		a.railSpaceRow(c, sp, places, statuses[sp.ID])
-		return
-	}
+// after it.
+func (a *App) spaceRow(c *ui.Context, sp *herdr.Space, places []*herdr.Space, statuses map[string]string) {
 	t := a.T
 	spaceName := a.S.SpaceName(sp)
 	row := ui.Row(c).Height(26).FillWidth().PaddingX(8).Radius(8).AlignItems(ui.Center)
@@ -240,47 +184,6 @@ func (a *App) spaceRow(c *ui.Context, sp *herdr.Space, rail bool, places []*herd
 	}
 }
 
-// railDivider separates one machine's spaces from the next machine's in the
-// rail, where there is no room for the machine header.
-func (a *App) railDivider(c *ui.Context) {
-	ui.Row(c).Height(9).FillWidth().Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-		ui.Box(c).Width(32).Height(1).Background(a.T.Border)
-	})
-}
-
-// railSpaceRow is a space in the rail: its colored initial, with a badge for
-// the most urgent agent inside it.
-func (a *App) railSpaceRow(c *ui.Context, sp *herdr.Space, places []*herdr.Space, status string) {
-	t := a.T
-	ui.Row(c).Height(34).FillWidth().Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-		box := ui.Box(c).Size(30, 30).Radius(8)
-		if sp.Active {
-			box.Background(t.Selected)
-		} else if box.Hovered() {
-			box.Background(t.Hover)
-		}
-		box.Cursor(ui.CursorPointer)
-		box.Children(func() {
-			name := a.S.SpaceName(sp)
-			mark := a.spaceMarkFor(sp, places)
-			ui.Box(c).Size(22, 22).Radius(6).Background(mark).Center().Children(func() {
-				letter := "?"
-				if r := []rune(name); len(r) > 0 {
-					letter = strings.ToUpper(string(r[0]))
-				}
-				ui.Text(c, letter).FontSize(12).FontWeight(700).TextColor(ui.RGB(255, 255, 255))
-			})
-			if status != "" {
-				ui.Box(c).Absolute().Right(1).Bottom(1).Size(8, 8).Radius(4).
-					Background(t.Status(status)).Border(1.5, t.Chrome)
-			}
-		})
-		if box.Clicked() {
-			a.S.SelectSpace(0, sp.ID)
-		}
-	})
-}
-
 // gitChip is a space's unusual git as one compact chip.
 func (a *App) gitChip(c *ui.Context, tail string) {
 	t := a.T
@@ -325,48 +228,46 @@ func (a *App) gitTail(sp *herdr.Space, name string) string {
 }
 
 // agents draws the agents list of the sidebar.
-func (a *App) agents(c *ui.Context, rail bool) {
+func (a *App) agents(c *ui.Context) {
 	t := a.T
 	list := a.S.Agents()
 	ui.Column(c).Fill().Background(t.Chrome).Children(func() {
-		if !rail {
-			blocked, working := 0, 0
-			for _, ag := range list {
-				switch ag.Status {
-				case "blocked":
-					blocked++
-				case "working":
-					working++
-				}
+		blocked, working := 0, 0
+		for _, ag := range list {
+			switch ag.Status {
+			case "blocked":
+				blocked++
+			case "working":
+				working++
 			}
-			row := ui.Row(c).Height(41).FillWidth().Padding(14, 16, 5, 16).Gap(8).AlignItems(ui.Center)
-			row.Children(func() {
-				ui.Text(c, "Agents").FontSize(11.5).FontWeight(500).TextColor(t.Dim)
-				ui.Spacer(c)
-				a.agentCount(c, "blocked", blocked)
-				a.agentCount(c, "working", working)
-				chevron := ui.Box(c).Size(20, 20).Radius(4).Center()
-				if chevron.Hovered() {
-					chevron.Background(t.Hover)
-				}
-				chevron.Cursor(ui.CursorPointer)
-				chevron.Children(func() {
-					icon := "chevron-down"
-					if a.agentsCollapsed {
-						icon = "chevron-right"
-					}
-					a.icon(c, icon, 12, t.Dim)
-				})
-				if chevron.Clicked() {
-					a.agentsCollapsed = !a.agentsCollapsed
-					a.Repaint()
-				}
-			})
 		}
-		if a.agentsCollapsed && !rail {
+		row := ui.Row(c).Height(41).FillWidth().Padding(14, 16, 5, 16).Gap(8).AlignItems(ui.Center)
+		row.Children(func() {
+			ui.Text(c, "Agents").FontSize(11.5).FontWeight(500).TextColor(t.Dim)
+			ui.Spacer(c)
+			a.agentCount(c, "blocked", blocked)
+			a.agentCount(c, "working", working)
+			chevron := ui.Box(c).Size(20, 20).Radius(4).Center()
+			if chevron.Hovered() {
+				chevron.Background(t.Hover)
+			}
+			chevron.Cursor(ui.CursorPointer)
+			chevron.Children(func() {
+				icon := "chevron-down"
+				if a.agentsCollapsed {
+					icon = "chevron-right"
+				}
+				a.icon(c, icon, 12, t.Dim)
+			})
+			if chevron.Clicked() {
+				a.agentsCollapsed = !a.agentsCollapsed
+				a.Repaint()
+			}
+		})
+		if a.agentsCollapsed {
 			return
 		}
-		if len(list) == 0 && !rail {
+		if len(list) == 0 {
 			ui.Box(c).PaddingX(12).Children(func() {
 				ui.Text(c, "No agent status yet. Older agents or tmux may not report.").
 					FontSize(12).TextColor(t.Dim).Wrap()
@@ -374,12 +275,6 @@ func (a *App) agents(c *ui.Context, rail bool) {
 		}
 		ui.Scroll(c).Grow(1).Children(func() {
 			ui.Column(c).FillWidth().PaddingX(8).Children(func() {
-				if rail {
-					for _, ag := range list {
-						a.agentRail(c, ag)
-					}
-					return
-				}
 				a.agentGroups(c, list)
 			})
 		})
@@ -455,30 +350,6 @@ func (a *App) agentRow(c *ui.Context, ag *herdr.Agent) {
 		}
 		ui.Text(c, name).FontSize(13).TextColor(color).Grow(1).Ellipsis("…")
 		a.agentStatus(c, ag.Status)
-	})
-	if row.Clicked() {
-		a.S.FocusPane(ag.Pane)
-	}
-}
-
-// agentRail is an agent in the narrow rail: its program, with a status badge.
-func (a *App) agentRail(c *ui.Context, ag *herdr.Agent) {
-	t := a.T
-	row := ui.Row(c).Height(30).FillWidth().Justify(ui.Center).AlignItems(ui.Center)
-	if row.Hovered() {
-		row.Background(t.Hover)
-	}
-	row.Cursor(ui.CursorPointer)
-	row.Children(func() {
-		ui.Box(c).Size(24, 24).Children(func() {
-			ui.Box(c).Fill().Center().Children(func() {
-				a.programIcon(c, ag.Program, 16, t.Foreground)
-			})
-			if ag.Status != "" {
-				ui.Box(c).Absolute().Right(-1).Bottom(-1).Size(7, 7).Radius(4).
-					Background(t.Status(ag.Status)).Border(1.5, t.Chrome)
-			}
-		})
 	})
 	if row.Clicked() {
 		a.S.FocusPane(ag.Pane)
@@ -721,6 +592,6 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 		return
 	}
 	for _, sp := range mine {
-		a.spaceRow(c, sp, false, places, statuses)
+		a.spaceRow(c, sp, places, statuses)
 	}
 }

@@ -28,6 +28,10 @@ func TestShot(t *testing.T) {
 	if overlay := os.Getenv("SHOT_OVERLAY"); overlay != "" {
 		app.OpenOverlay(overlay)
 	}
+	if os.Getenv("SHOT_SIDEBAR") == "collapsed" {
+		app.SidebarOpen = false
+		app.sidebarShown = 0
+	}
 	if section := os.Getenv("SHOT_SECTION"); section != "" {
 		app.settings.Section = section
 	}

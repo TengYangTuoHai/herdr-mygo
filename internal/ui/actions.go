@@ -63,7 +63,8 @@ type PromptState struct {
 	Target  string
 }
 
-// settingsState is what the Settings screen shows.
+// settingsState is what the Settings screen shows, and the view the window
+// keeps between launches.
 type settingsState struct {
 	Section       string
 	Appearance    int
@@ -89,6 +90,11 @@ type settingsState struct {
 
 	Telemetry bool
 
+	// SidebarOpen and SidebarWidth are the sidebar as it was left: whether
+	// it is shown, and the width it opens at.
+	SidebarOpen  bool
+	SidebarWidth float32
+
 	Search     string
 	SearchOpen bool
 	SearchAt   int
@@ -113,6 +119,8 @@ func defaultSettings() settingsState {
 		AutoInstall:     true,
 		BackgroundCheck: true,
 		Telemetry:       true,
+		SidebarOpen:     true,
+		SidebarWidth:    268,
 	}
 }
 

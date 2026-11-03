@@ -38,6 +38,9 @@ type settingsFile struct {
 	AutoInstall     bool    `json:"auto_install"`
 	BackgroundCheck bool    `json:"background_check"`
 	Telemetry       bool    `json:"telemetry"`
+
+	SidebarOpen  bool    `json:"sidebar_open"`
+	SidebarWidth float32 `json:"sidebar_width"`
 }
 
 // file is the state as the settings file keeps it.
@@ -51,6 +54,7 @@ func (s settingsState) file() settingsFile {
 		AlertDone: s.AlertDone, AlertNeeds: s.AlertNeeds, AlertSound: s.AlertSound,
 		UpdateChannel: s.UpdateChannel, AutoInstall: s.AutoInstall,
 		BackgroundCheck: s.BackgroundCheck, Telemetry: s.Telemetry,
+		SidebarOpen: s.SidebarOpen, SidebarWidth: s.SidebarWidth,
 	}
 }
 
@@ -85,6 +89,8 @@ func readSettings(data []byte, s settingsState) settingsState {
 	take("auto_install", &s.AutoInstall)
 	take("background_check", &s.BackgroundCheck)
 	take("telemetry", &s.Telemetry)
+	take("sidebar_open", &s.SidebarOpen)
+	take("sidebar_width", &s.SidebarWidth)
 	return s.sanitized()
 }
 
@@ -113,6 +119,10 @@ func (s settingsState) sanitized() settingsState {
 	if s.UpdateChannel < 0 || s.UpdateChannel >= len(updateChannelNames) {
 		s.UpdateChannel = 0
 	}
+	if s.SidebarWidth <= 0 {
+		s.SidebarWidth = 268
+	}
+	s.SidebarWidth = min(max(s.SidebarWidth, sidebarMinWidth), sidebarMaxWidth)
 	return s
 }
 
@@ -157,6 +167,12 @@ func (a *App) LoadSettings() {
 		if canonical, err := settingsJSON(a.settings); err == nil {
 			a.savedSettings = string(canonical)
 		}
+	}
+	a.SidebarOpen = a.settings.SidebarOpen
+	a.SidebarWidth = a.settings.SidebarWidth
+	a.sidebarShown = a.SidebarWidth
+	if !a.SidebarOpen {
+		a.sidebarShown = 0
 	}
 }
 

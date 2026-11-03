@@ -40,7 +40,7 @@ func TestSplitHandleDragsTheDivider(t *testing.T) {
 	tt := myui.NewTester(app.View, 1280, 820)
 	tt.Frame()
 
-	listHeight := app.H - 46 - app.footerHeight(false) - 1
+	listHeight := app.H - 46 - sidebarFooterHeight - 1
 	start := 46 + listHeight*app.splitRatio
 	before := listHeight * app.splitRatio
 
@@ -64,7 +64,7 @@ func TestSplitHandleStopsAtItsLimits(t *testing.T) {
 	tt := myui.NewTester(app.View, 1280, 820)
 	tt.Frame()
 
-	listHeight := app.H - 46 - app.footerHeight(false) - 1
+	listHeight := app.H - 46 - sidebarFooterHeight - 1
 	start := 46 + listHeight*app.splitRatio
 
 	tt.Press(120, start)

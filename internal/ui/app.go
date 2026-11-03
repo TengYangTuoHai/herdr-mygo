@@ -15,6 +15,17 @@ import (
 	"herdr-mygo/internal/herdr"
 )
 
+const (
+	// sidebarMinWidth and sidebarMaxWidth bound the width the edge drags;
+	// the sidebar opens again at the width it was closed at.
+	sidebarMinWidth float32 = 160
+	sidebarMaxWidth float32 = 480
+	// sidebarFooterHeight is the height of the sidebar's footer.
+	sidebarFooterHeight float32 = 69
+	// sidebarDuration is how long the sidebar takes to open or close.
+	sidebarDuration = 200 * time.Millisecond
+)
+
 // App is the window's state: the core's world, what the window shows of it,
 // and the terminal views attached to the core's terminals.
 type App struct {
@@ -26,8 +37,14 @@ type App struct {
 
 	// Zoom is how large the app draws, as settings.json's zoom.
 	Zoom float32
-	// SidebarWidth is the sidebar's width in DIPs, 0 when it is the rail.
+	// SidebarWidth is the sidebar's width in DIPs while it is open, and
+	// SidebarOpen tells whether it is shown. sidebarShown is the width the
+	// last frame drew, which eases between the two as it opens and closes;
+	// sidebarDrag tells whether the pointer is dragging its edge.
 	SidebarWidth float32
+	SidebarOpen  bool
+	sidebarShown float32
+	sidebarDrag  bool
 	// splitRatio is the spaces list's share of the sidebar's two lists;
 	// agentsCollapsed folds the agents list to its header.
 	splitRatio      float32
@@ -92,6 +109,8 @@ func NewApp(s *herdr.Session, theme *Theme) *App {
 		themeName:      "graphite",
 		Zoom:           1,
 		SidebarWidth:   268,
+		SidebarOpen:    true,
+		sidebarShown:   268,
 		splitRatio:     0.5,
 		settings:       defaultSettings(),
 		terms:          map[string]*paneTerm{},
@@ -142,51 +161,66 @@ func (a *App) View(c *ui.Context) {
 		}
 	}
 	a.collect()
+	// The edge is read before the sidebar is built, so that a drag follows
+	// the pointer in the frame it moves.
+	a.resizeHandle(c)
 	ui.Row(c).Fill().Background(t.Canvas).Font(UIFont).AlignItems(ui.Start).Children(func() {
 		a.sidebar(c)
-		ui.Box(c).Width(1).FillHeight().Background(t.Border)
+		if a.sidebarShown > 0 {
+			ui.Box(c).Width(1).FillHeight().Background(t.Border)
+		}
 		a.work(c)
 	})
-	a.resizeHandle(c)
 	a.overlays(c)
 	// A setting this frame changed goes to the file it is kept in.
 	a.saveSettings()
 }
 
 // sidebar draws the brand row, the spaces and agents lists, and the footer.
+// Its width eases between the width it opened at and nothing, as MyGo's
+// sidebar example does, and ClipX cuts the content as it goes.
 func (a *App) sidebar(c *ui.Context) {
 	t := a.T
-	width := a.SidebarWidth
-	rail := width < 160
-	footHeight := a.footerHeight(rail)
 	// listHeight is what the spaces and agents lists share, the divider aside.
-	listHeight := a.H - 46 - footHeight - 1
+	listHeight := a.H - 46 - sidebarFooterHeight - 1
 	if listHeight < 90 {
 		listHeight = 90
 	}
 	spacesHeight := listHeight / 2
-	if !rail {
-		if a.agentsCollapsed {
-			spacesHeight = listHeight - 41
-		} else {
-			minSpaces, maxSpaces := splitLimits(listHeight)
-			spacesHeight = listHeight * a.splitRatio
-			if spacesHeight < minSpaces {
-				spacesHeight = minSpaces
-			}
-			if spacesHeight > maxSpaces {
-				spacesHeight = maxSpaces
-			}
+	if a.agentsCollapsed {
+		spacesHeight = listHeight - 41
+	} else {
+		minSpaces, maxSpaces := splitLimits(listHeight)
+		spacesHeight = listHeight * a.splitRatio
+		if spacesHeight < minSpaces {
+			spacesHeight = minSpaces
+		}
+		if spacesHeight > maxSpaces {
+			spacesHeight = maxSpaces
 		}
 	}
-	ui.Column(c).Width(width).FillHeight().Background(t.Chrome).Children(func() {
-		a.brand(c, rail)
-		ui.Box(c).Height(spacesHeight).FillWidth().Children(func() { a.spaces(c, rail) })
+	side := ui.Column(c).FillHeight().Background(t.Chrome).ClipX()
+	var width float32
+	if a.sidebarDrag {
+		// The pointer holds the edge: it goes where it goes, at once.
+		width = side.Jump("sidebar-width", a.SidebarWidth)
+	} else {
+		target := float32(0)
+		if a.SidebarOpen {
+			target = a.SidebarWidth
+		}
+		width = side.AnimateWith("sidebar-width", target, sidebarDuration, ui.EaseInOut)
+	}
+	a.sidebarShown = width
+	side.Width(width)
+	side.Children(func() {
+		a.brand(c)
+		ui.Box(c).Height(spacesHeight).FillWidth().Children(func() { a.spaces(c) })
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
-		ui.Box(c).Grow(1).FillWidth().Children(func() { a.agents(c, rail) })
-		a.footer(c, rail)
+		ui.Box(c).Grow(1).FillWidth().Children(func() { a.agents(c) })
+		a.footer(c)
 	})
-	if !rail && !a.agentsCollapsed {
+	if a.SidebarOpen && width > 0 && !a.agentsCollapsed {
 		a.splitHandle(c, spacesHeight, listHeight)
 	}
 }
@@ -196,7 +230,7 @@ func (a *App) splitHandle(c *ui.Context, spacesHeight, listHeight float32) {
 	t := a.T
 	ui.Overlay(c, func() {
 		handle := ui.Box(c).Absolute().Top(46 + spacesHeight - 3).Left(0).
-			Width(a.SidebarWidth).Height(6).Cursor(ui.CursorResizeNS)
+			Width(a.sidebarShown).Height(6).Cursor(ui.CursorResizeNS)
 		// Dragged reports the pointer's horizontal travel first: the divider
 		// follows its vertical one, and stays lit while the press lasts.
 		_, dy, held := handle.Dragged()
@@ -233,36 +267,21 @@ func splitLimits(listHeight float32) (min, max float32) {
 	return min, max
 }
 
-// footerHeight is the sidebar footer's height; the rail adds the expand row.
-func (a *App) footerHeight(rail bool) float32 {
-	if rail {
-		return 97
-	}
-	return 69
-}
-
 // brand is the row with the logo, search and the sidebar toggle.
-func (a *App) brand(c *ui.Context, rail bool) {
+func (a *App) brand(c *ui.Context) {
 	t := a.T
 	left := float32(14)
-	if !rail && isMac() {
+	if isMac() {
 		left = 76
 	}
 	row := ui.Row(c).Height(46).FillWidth().Background(t.Chrome).Padding(0, 10, 0, left).Gap(4).AlignItems(ui.Center).DragWindow()
 	row.Children(func() {
-		if !rail {
-			ui.Row(c).Grow(1).Gap(8).AlignItems(ui.Center).Children(func() {
-				a.logo(c, 20)
-				ui.Text(c, "Herdr").FontSize(13.5).FontWeight(600).TextColor(t.Foreground)
-			})
-			a.iconButton(c, "search", 26, func() { a.OpenOverlay("picker") })
-			a.iconButton(c, "sidebar", 26, a.toggleSidebar)
-			return
-		}
-		ui.Spacer(c)
-		if !isMac() {
-			a.iconButton(c, "sidebar", 26, a.toggleSidebar)
-		}
+		ui.Row(c).Grow(1).Gap(8).AlignItems(ui.Center).Children(func() {
+			a.logo(c, 20)
+			ui.Text(c, "Herdr").FontSize(13.5).FontWeight(600).TextColor(t.Foreground)
+		})
+		a.iconButton(c, "search", 26, "Search", func() { a.OpenOverlay("picker") })
+		a.iconButton(c, "sidebar", 26, "Hide sidebar", a.toggleSidebar)
 	})
 }
 
@@ -280,10 +299,11 @@ func (a *App) logo(c *ui.Context, size float32) {
 	})
 }
 
-// iconButton is a small square button of the chrome.
-func (a *App) iconButton(c *ui.Context, name string, size float32, onClick func()) {
+// iconButton is a small square button of the chrome; tip names it for the
+// pointer and for assistive technology.
+func (a *App) iconButton(c *ui.Context, name string, size float32, tip string, onClick func()) {
 	t := a.T
-	b := ui.Box(c).Size(size, size).Radius(6).Center()
+	b := ui.Box(c).Size(size, size).Radius(6).Center().Label(tip).Tooltip(tip)
 	if b.Hovered() {
 		b.Background(t.Hover)
 	}
@@ -336,36 +356,29 @@ func (a *App) programIcon(c *ui.Context, p herdr.ProgramInfo, size float32, colo
 	ui.Icon(c, svg).Size(size, size).TextColor(color)
 }
 
+// toggleSidebar hides the sidebar, or brings it back at the width it had.
 func (a *App) toggleSidebar() {
-	if a.SidebarWidth < 160 {
-		a.SidebarWidth = 268
-	} else {
-		a.SidebarWidth = 76
-	}
+	a.SidebarOpen = !a.SidebarOpen
+	a.settings.SidebarOpen = a.SidebarOpen
+	a.settings.SidebarWidth = a.SidebarWidth
 	a.Repaint()
 }
 
-// footer is Settings, Add machine, and the rail's expand row.
-func (a *App) footer(c *ui.Context, rail bool) {
+// footer is Settings and Add machine.
+func (a *App) footer(c *ui.Context) {
 	t := a.T
-	ui.Column(c).Height(a.footerHeight(rail)).FillWidth().Background(t.Chrome).Children(func() {
+	ui.Column(c).Height(sidebarFooterHeight).FillWidth().Background(t.Chrome).Children(func() {
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		ui.Column(c).Grow(1).FillWidth().Padding(4, 8, 8, 8).Children(func() {
-			a.footerRow(c, "settings", "Settings", false, rail, func() { a.OpenOverlay("settings") })
-			a.footerRow(c, "plus", "Add machine", true, rail, func() { a.OpenOverlay("machine-add") })
-			if rail {
-				a.footerRow(c, "chevron-right", "Expand sidebar", true, rail, a.toggleSidebar)
-			}
+			a.footerRow(c, "settings", "Settings", false, func() { a.OpenOverlay("settings") })
+			a.footerRow(c, "plus", "Add machine", true, func() { a.OpenOverlay("machine-add") })
 		})
 	})
 }
 
-func (a *App) footerRow(c *ui.Context, icon, label string, dim, rail bool, action func()) {
+func (a *App) footerRow(c *ui.Context, icon, label string, dim bool, action func()) {
 	t := a.T
 	row := ui.Row(c).Height(28).FillWidth().PaddingX(8).Gap(9).Radius(8).AlignItems(ui.Center)
-	if rail {
-		row.Justify(ui.Center)
-	}
 	color := t.Muted
 	if dim {
 		color = t.Dim
@@ -377,9 +390,7 @@ func (a *App) footerRow(c *ui.Context, icon, label string, dim, rail bool, actio
 	row.Cursor(ui.CursorPointer)
 	row.Children(func() {
 		a.icon(c, icon, 14, color)
-		if !rail {
-			ui.Text(c, label).FontSize(13).TextColor(color)
-		}
+		ui.Text(c, label).FontSize(13).TextColor(color)
 	})
 	if row.Clicked() {
 		action()
@@ -404,8 +415,19 @@ func (a *App) work(c *ui.Context) {
 // tabsBar is the row of tabs, the new tab button and the panel buttons.
 func (a *App) tabsBar(c *ui.Context) {
 	t := a.T
+	// With the sidebar hidden the tabs start at the window's edge, so on
+	// macOS they leave the traffic lights their room, as the brand does.
+	left := float32(10)
+	if isMac() {
+		if room := 76 - a.sidebarShown; room > left {
+			left = room
+		}
+	}
 	ui.Column(c).Height(42).FillWidth().Children(func() {
-		ui.Row(c).Grow(1).FillWidth().Background(t.Chrome).PaddingX(10).Gap(3).AlignItems(ui.Center).DragWindow().Children(func() {
+		ui.Row(c).Grow(1).FillWidth().Background(t.Chrome).Padding(0, 10, 0, left).Gap(3).AlignItems(ui.Center).DragWindow().Children(func() {
+			if !a.SidebarOpen {
+				a.iconButton(c, "sidebar", 26, "Show sidebar", a.toggleSidebar)
+			}
 			if !a.spaceEmpty() {
 				a.tabList(c)
 			} else {
@@ -1031,23 +1053,38 @@ func paletteHint() string {
 	return "commands"
 }
 
-// resizeHandle drags the sidebar's edge, as Herdr's divider does.
+// resizeHandle drags the sidebar's edge, as Herdr's divider does. The edge
+// is where the last frame drew it, so it keeps up while the sidebar eases
+// open or closed; a drag moves the width at once, as the pointer does.
 func (a *App) resizeHandle(c *ui.Context) {
 	t := a.T
+	was := a.sidebarDrag
+	a.sidebarDrag = false
+	if !a.SidebarOpen {
+		if was {
+			a.settings.SidebarWidth = a.SidebarWidth
+		}
+		return
+	}
 	ui.Overlay(c, func() {
-		handle := ui.Box(c).Absolute().Top(0).Bottom(0).Width(6).Left(a.SidebarWidth - 2).Cursor(ui.CursorResizeEW)
+		handle := ui.Box(c).Absolute().Top(0).Bottom(0).Width(6).Left(a.sidebarShown - 2).Cursor(ui.CursorResizeEW)
 		if handle.Hovered() {
 			handle.Background(Alpha(t.Border, 0.8))
 		}
-		if dx, _, ok := handle.Dragged(); ok {
-			width := a.SidebarWidth + dx
-			if width < 44 {
-				width = 44
-			}
-			if width > 480 {
-				width = 480
-			}
-			a.SidebarWidth = width
+		dx, _, held := handle.Dragged()
+		a.sidebarDrag = held
+		if held {
+			a.SidebarWidth = clampWidth(a.sidebarShown + dx)
+		}
+		if was && !held {
+			// Keep the width it was let go at, which is the width it opens
+			// with again.
+			a.settings.SidebarWidth = a.SidebarWidth
 		}
 	})
+}
+
+// clampWidth keeps the sidebar between the widths it can be dragged to.
+func clampWidth(w float32) float32 {
+	return min(max(w, sidebarMinWidth), sidebarMaxWidth)
 }

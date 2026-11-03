@@ -95,6 +95,10 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
   `~/.config/herdr-mygo`: `settings.json` written as a setting changes, the
   keys, and the screen's view
 - Files tree with file preview; Changes with git status, diff and commit
+- The sidebar collapses to nothing — ⌘B, or the button in the brand bar —
+  easing closed as MyGo's sidebar example does (`Animate` + `ClipX`), and
+  opens again at the width it had; the width and whether it is open are
+  kept in `settings.json`
 - Sidebar drag to resize, spaces and machine groups dragged into order,
   window drag on the brand and tab bars, traffic lights where Herdr puts them
 
