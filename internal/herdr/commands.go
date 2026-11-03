@@ -2,6 +2,7 @@ package herdr
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -624,6 +625,38 @@ func (s *Session) OpenTerminal(argv []string, folder, place string) {
 	default:
 		_, _ = s.NewTab("", folder, argv)
 	}
+}
+
+// PutResult is where a file sent beside a terminal landed.
+type PutResult struct {
+	Path  string `json:"path"`
+	Bytes int    `json:"bytes"`
+}
+
+// Put writes a file beside a terminal, on the machine it runs on, for its
+// program to read: a pasted image's bytes, which a program there cannot read
+// from this computer's clipboard. The core keeps the name (a suffix when it
+// is taken) in a folder of its own that goes with the terminal, and types
+// nothing: the caller pastes the path it returns.
+func (s *Session) Put(terminal, name string, data []byte) (PutResult, error) {
+	var out PutResult
+	if s.Core == nil {
+		return out, errNoCore
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	raw, err := s.Core.Call(ctx, "terminal.put", map[string]any{
+		"terminal": terminal,
+		"name":     name,
+		"data":     base64.StdEncoding.EncodeToString(data),
+	})
+	if err != nil {
+		return out, err
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return PutResult{}, err
+	}
+	return out, nil
 }
 
 // KillTerminal ends a terminal's program.

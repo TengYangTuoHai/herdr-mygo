@@ -481,3 +481,12 @@ func SpaceMachine(sp *Space) string {
 	}
 	return *sp.Machine
 }
+
+// TerminalMachine is the machine a terminal address runs on, "" for this
+// computer: addresses here are t7, there machine/t7.
+func TerminalMachine(addr string) string {
+	if i := strings.IndexByte(addr, '/'); i > 0 {
+		return addr[:i]
+	}
+	return ""
+}
