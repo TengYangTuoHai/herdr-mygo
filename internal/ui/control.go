@@ -206,28 +206,44 @@ func (a *App) controlTerminalKeep(raw json.RawMessage) (map[string]any, error) {
 	}
 	// A terminal already on the screen comes to the front instead of a
 	// second pane showing it.
-	if a.S.FocusTerminal(addr) {
-		return map[string]any{"terminal": addr, "pane": a.S.FocusedPane().Pane}, nil
+	pane, front, err := a.keepTerminal(addr)
+	if err != nil {
+		return nil, err
 	}
-	if term := a.S.Terminal(addr); term == nil || !term.Live() {
-		return nil, fmt.Errorf("no running terminal %q", addr)
+	if front {
+		return map[string]any{"terminal": addr, "pane": pane}, nil
 	}
 	sp, tab := a.S.Active()
 	if sp == nil || tab == nil {
 		return nil, fmt.Errorf("no space to keep it in")
-	}
-	if machineOf(addr) != herdr.SpaceMachine(sp) {
-		return nil, fmt.Errorf("a terminal's pane must stay on its own machine")
-	}
-	pane, err := a.S.KeepTerminal(addr)
-	if err != nil {
-		return nil, err
 	}
 	reply := map[string]any{"terminal": addr, "space": sp.ID, "tab": tab.ID}
 	if pane != "" {
 		reply["pane"] = pane
 	}
 	return reply, nil
+}
+
+// keepTerminal gives a terminal that is already running a pane in the shown
+// tab: a worker the core started, or one the window parked, has none of its
+// own. It answers the pane, and front when the terminal was already on the
+// screen and came to the front instead.
+func (a *App) keepTerminal(addr string) (pane string, front bool, err error) {
+	if a.S.FocusTerminal(addr) {
+		return a.S.FocusedPane().Pane, true, nil
+	}
+	if term := a.S.Terminal(addr); term == nil || !term.Live() {
+		return "", false, fmt.Errorf("no running terminal %q", addr)
+	}
+	sp, tab := a.S.Active()
+	if sp == nil || tab == nil {
+		return "", false, fmt.Errorf("no space to keep it in")
+	}
+	if machineOf(addr) != herdr.SpaceMachine(sp) {
+		return "", false, fmt.Errorf("a terminal's pane must stay on its own machine")
+	}
+	pane, err = a.S.KeepTerminal(addr)
+	return pane, false, err
 }
 
 // tabReply is a new tab as a command answers it: its space, its tab and the

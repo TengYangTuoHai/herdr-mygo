@@ -84,7 +84,8 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
   Codex, Pi, OpenCode, Grok, Gemini, …), full color where the mark is, and
   DeepSeek's for `dsh-tui`/`dsh`; a row from another machine names it, and
   the workers an agent started (`hc run --bg …` from its terminal) hang under
-  its row with the lines that lead to them
+  its row with the lines that lead to them, and a click on one gives it a
+  pane in the shown tab
 - Command palette with fuzzy search, group headers and key chips
 - Go-to-space-or-tab picker, new-tab menu, right-click menus on spaces,
   tabs and panes, prompt dialogs, toasts
