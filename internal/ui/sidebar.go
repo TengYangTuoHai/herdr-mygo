@@ -513,6 +513,16 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 		}
 	}
 	connected := name == "" || (info != nil && info.Connected())
+	// The dot says whether the machine answers, in the colors the Machines
+	// settings page gives the same states. Idle's grey is Dim's own grey, so a
+	// connected machine used to look no different from a machine away.
+	state := "asleep"
+	if name == "" {
+		state = "connected"
+	}
+	if info != nil && info.State != "" {
+		state = info.State
+	}
 	folded := a.foldedMachines[name]
 	head := ui.Row(c).Height(26).FillWidth().PaddingX(8).Gap(7).Radius(8).AlignItems(ui.Center)
 	head.Cursor(ui.CursorPointer)
@@ -529,11 +539,7 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 		}
 		ui.Text(c, label).FontSize(11).TextColor(t.Dim).Grow(1).Ellipsis("…")
 		if !connected {
-			state := "asleep"
-			if info != nil && info.State != "" {
-				state = strings.ReplaceAll(info.State, "_", " ")
-			}
-			ui.Text(c, state).FontSize(11).TextColor(t.Dim)
+			ui.Text(c, strings.ReplaceAll(state, "_", " ")).FontSize(11).TextColor(t.Dim)
 		} else {
 			plus = ui.Box(c).Size(16, 16).Radius(4).Center()
 			if plus.Hovered() {
@@ -545,11 +551,7 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 				a.newSpaceOn(name)
 			}
 		}
-		dot := t.Dim
-		if connected {
-			dot = t.Status("idle")
-		}
-		ui.Box(c).Size(6, 6).Radius(3).Background(dot)
+		ui.Box(c).Size(6, 6).Radius(3).Background(a.machineStateColor(state))
 		chevron := "chevron-down"
 		if folded {
 			chevron = "chevron-right"
