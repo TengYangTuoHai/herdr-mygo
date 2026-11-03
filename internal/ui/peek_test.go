@@ -22,6 +22,27 @@ func peekWindow(t *testing.T, app *App) *myui.Tester {
 	return tt
 }
 
+// TestPeekCardIsOneSurface draws the peek's corners the card's way: the bar
+// and the view under it sit on the card's own surface, as a pane's header and
+// terminal do on the pane's, so no band of another colour runs into the
+// rounded corners.
+func TestPeekCardIsOneSurface(t *testing.T) {
+	RegisterFonts()
+	app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+	app.overlay = "peek"
+	app.peek = peekState{addr: "t2"}
+	tt := peekWindow(t, app)
+	img := tt.Image()
+	bg := app.T.Background
+	want := [3]uint32{uint32(bg.R) * 0x101, uint32(bg.G) * 0x101, uint32(bg.B) * 0x101}
+	for _, at := range [][2]int{{300, 95}, {200, 700}} { // the bar, and the view
+		r, g, b, _ := img.At(at[0], at[1]).RGBA()
+		if r != want[0] || g != want[1] || b != want[2] {
+			t.Errorf("%v is #%02x%02x%02x, want the card's #%02x%02x%02x", at, r>>8, g>>8, b>>8, bg.R, bg.G, bg.B)
+		}
+	}
+}
+
 // TestPeekBarOffersKeepAndClose draws the bar over a peeked sub-agent: it says
 // which terminal is being looked at, and offers the keep that gives it a pane,
 // with the close that puts the look away.
