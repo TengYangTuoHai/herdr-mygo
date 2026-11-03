@@ -416,7 +416,8 @@ func subAgents(all []*herdr.Terminal, shown map[string]bool, parent string, lead
 
 // subAgentRow is a sub-agent under the agent that started it: indented, with
 // the tree lines that lead to it, its program's logo and its name. It has no
-// pane, so there is nothing to focus from here.
+// pane of its own, so a click gives it one in the shown tab, as
+// `terminal.keep` gives a worker the core started.
 func (a *App) subAgentRow(c *ui.Context, sub subRow) {
 	t := a.T
 	term := sub.Term
@@ -434,6 +435,10 @@ func (a *App) subAgentRow(c *ui.Context, sub subRow) {
 		name = term.Address
 	}
 	row := ui.Row(c).Height(26).FillWidth().Padding(0, 8, 0, 14).Radius(8).AlignItems(ui.Center)
+	if row.Hovered() {
+		row.Background(t.Hover)
+	}
+	row.Cursor(ui.CursorPointer)
 	row.Children(func() {
 		for _, line := range sub.Lines {
 			ui.Box(c).Width(11).Height(26).Center().Children(func() {
@@ -446,6 +451,21 @@ func (a *App) subAgentRow(c *ui.Context, sub subRow) {
 		ui.Text(c, name).FontSize(12.5).TextColor(t.Muted).Grow(1).MinWidth(0).SingleLine()
 		a.agentStatus(c, subWord(term.Word()))
 	})
+	if row.Clicked() {
+		a.showSubAgent(term.Address)
+	}
+}
+
+// showSubAgent brings a worker onto the screen: it has no pane to focus, so a
+// click on its row gives it one in the shown tab. The core takes a moment to
+// answer, and the window keeps drawing while it does.
+func (a *App) showSubAgent(addr string) {
+	go func() {
+		if _, _, err := a.keepTerminal(addr); err != nil {
+			a.toast("Cannot show the sub-agent", err.Error(), "error")
+		}
+		a.Repaint()
+	}()
 }
 
 // agentRow is one agent: the same 26 px row, radius 8 and 2 px gap as the

@@ -344,3 +344,55 @@ func TestSubAgentRowIsIndentedUnderItsParent(t *testing.T) {
 		t.Error("the tree line that leads to the sub-agent is not drawn")
 	}
 }
+
+// TestSubAgentRowTakesAClick gives the row a worker hangs under the pointer its
+// parent's row has, and a click asks for a pane to look at it in: it has none
+// of its own, so the list's own click cannot focus it.
+func TestSubAgentRowTakesAClick(t *testing.T) {
+	RegisterFonts()
+	app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+	ag := &herdr.Agent{SpaceName: "a-space", Status: "done"}
+	sub := subRow{Term: worker("t2", "t1", "w-core-agents-visible"), Lines: []string{"└"}}
+	tt := myui.NewTester(func(c *myui.Context) {
+		myui.Column(c).Width(268).PaddingX(8).Gap(2).Children(func() {
+			app.agentRow(c, ag)
+			app.subAgentRow(c, sub)
+		})
+	}, 400, 200)
+	tt.Frame()
+
+	name, ok := tt.Find("w-core-agents-visible")
+	if !ok {
+		t.Fatal("the sub-agent's row is not drawn")
+	}
+	at := [2]float32{name.X + 2, name.Y + name.H/2}
+	tt.Move(at[0], at[1])
+	tt.Frame()
+	if got := tt.Cursor(); got != myui.CursorPointer {
+		t.Errorf("the pointer is %v over a sub-agent, want the parent row's pointer", got)
+	}
+
+	// The click asks the session for a pane; this session holds no terminal
+	// to give one to, so the window says why instead of doing nothing.
+	tt.ClickAt(at[0], at[1])
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		app.mu.Lock()
+		notes := append([]Toast(nil), app.notes...)
+		app.mu.Unlock()
+		if len(notes) > 0 {
+			if notes[0].Title != "Cannot show the sub-agent" {
+				t.Fatalf("the click said %q: %s", notes[0].Title, notes[0].Body)
+			}
+			if !strings.Contains(notes[0].Body, "no running terminal") {
+				t.Fatalf("the click failed for another reason: %s", notes[0].Body)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("clicking the sub-agent's row did nothing")
+		}
+		time.Sleep(5 * time.Millisecond)
+		tt.Frame()
+	}
+}
