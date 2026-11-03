@@ -77,3 +77,59 @@ func TestSplitHandleStopsAtItsLimits(t *testing.T) {
 		t.Fatalf("spaces height = %v, outside %v..%v", got, minSpaces, listHeight)
 	}
 }
+
+// TestPaneWeightsMoveWithThePointer drags the divider between two panes: the
+// DIPs it travels are what one pane gains and the other loses, in the weights
+// the panes are sized by.
+func TestPaneWeightsMoveWithThePointer(t *testing.T) {
+	even := []paneSpan{{ID: "a", Weight: 0.5, Span: 396}, {ID: "b", Weight: 0.5, Span: 396}}
+	cases := []struct {
+		name  string
+		cells []paneSpan
+		at    int
+		delta float32
+		want  map[string]float64
+	}{
+		{"a pane grows, the other shrinks", even, 0, 40, map[string]float64{"a": 0.550505, "b": 0.449495}},
+		// 792 DIPs a weight: 80 DIPs left for the second pane is a weight of 0.101.
+		{"the second pane stops at its smallest", even, 0, 400, map[string]float64{"a": 0.89899, "b": 0.10101}},
+		{"the first pane stops at its smallest", even, 0, -400, map[string]float64{"a": 0.10101, "b": 0.89899}},
+		// 500 DIPs of weights: a third pane keeps its 0.5 and its room.
+		{
+			"a third pane keeps its share",
+			[]paneSpan{{ID: "a", Weight: 0.5, Span: 396}, {ID: "b", Weight: 0.5, Span: 396}, {ID: "c", Weight: 0.5, Span: 396}},
+			1, -40, map[string]float64{"b": 0.449495, "c": 0.550505},
+		},
+		// A pane fixed to px takes the weight that keeps its 200 DIPs: 200 × 0.5 / 396 = 0.2525, and 40 DIPs are 0.0505 of it.
+		{
+			"a px pane becomes a weight",
+			[]paneSpan{{ID: "a", Weight: 0, Span: 200}, {ID: "b", Weight: 0.5, Span: 396}, {ID: "c", Weight: 0.5, Span: 396}},
+			0, 40, map[string]float64{"a": 0.30303, "b": 0.449495},
+		},
+		// Nothing else shares: a weight is a DIP.
+		{
+			"two px panes move in px",
+			[]paneSpan{{ID: "a", Weight: 0, Span: 300}, {ID: "b", Weight: 0, Span: 500}},
+			0, 50, map[string]float64{"a": 350, "b": 450},
+		},
+	}
+	for _, c := range cases {
+		got, ok := paneWeights(c.cells, c.at, c.delta, 80)
+		if !ok {
+			t.Errorf("%s: no weights", c.name)
+			continue
+		}
+		if len(got) != len(c.want) {
+			t.Errorf("%s: moved %v, want %v", c.name, got, c.want)
+			continue
+		}
+		for id, want := range c.want {
+			if v := got[id]; v < want-0.001 || v > want+0.001 {
+				t.Errorf("%s: %s = %v, want %v", c.name, id, v, want)
+			}
+		}
+	}
+	if _, ok := paneWeights(even, 1, 40, 80); ok {
+		t.Fatal("a divider past the last child moved something")
+	}
+}
