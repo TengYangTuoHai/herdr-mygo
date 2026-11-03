@@ -268,7 +268,7 @@ func (a *App) agents(c *ui.Context) {
 				a.icon(c, icon, 12, t.Dim)
 			})
 			if chevron.Clicked() {
-				a.agentsCollapsed = !a.agentsCollapsed
+				a.toggleAgents()
 				a.Repaint()
 			}
 		})
@@ -677,11 +677,7 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 		head.Background(t.Hover)
 	}
 	if head.Clicked() {
-		if folded {
-			delete(a.foldedMachines, name)
-		} else {
-			a.foldedMachines[name] = true
-		}
+		a.toggleMachine(name)
 	}
 	// A remote machine's header drags its group up or down the sidebar, and
 	// takes a space dragged onto it at the top of its list.
@@ -733,4 +729,22 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 	for _, sp := range mine {
 		a.spaceRow(c, sp, places, statuses)
 	}
+}
+
+// toggleAgents folds the agents list to its header, or unfolds it, and keeps
+// the fold for the next launch.
+func (a *App) toggleAgents() {
+	a.agentsCollapsed = !a.agentsCollapsed
+	a.settings.AgentsCollapsed = a.agentsCollapsed
+}
+
+// toggleMachine folds a machine's spaces under its header, or unfolds them,
+// and keeps the fold for the next launch.
+func (a *App) toggleMachine(name string) {
+	if a.foldedMachines[name] {
+		delete(a.foldedMachines, name)
+	} else {
+		a.foldedMachines[name] = true
+	}
+	a.settings.FoldedMachines = a.foldedMachines
 }
