@@ -83,6 +83,10 @@ type App struct {
 	overlay   string
 	err       error
 
+	// peek is the terminal the window looks at over the tab, and what has
+	// become of its attachment.
+	peek peekState
+
 	palette PaletteState
 	notes   []Toast
 
@@ -1122,6 +1126,10 @@ func (a *App) applyTerminalTheme(th *Theme) {
 	views := make([]*paneTerm, 0, len(a.terms))
 	for _, entry := range a.terms {
 		views = append(views, entry)
+	}
+	if a.peek.term != nil {
+		// A peeked terminal is not a pane's, and follows the theme too.
+		views = append(views, &paneTerm{term: a.peek.term, conn: a.peek.conn})
 	}
 	a.mu.Unlock()
 	for _, entry := range views {
