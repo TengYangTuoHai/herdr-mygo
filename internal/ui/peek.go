@@ -119,9 +119,9 @@ func (a *App) peekHome(addr string) bool {
 	return false
 }
 
-// peekOverlay is a terminal over the tab, as `terminal.peek` draws it in
+// peekOverlay is a terminal over the tab, as `terminal.peek` shows it in
 // Herdr: the bar that says who it is and offers keep or close, and the
-// terminal itself under it.
+// terminal itself under it — drawn our way, both on the card's own surface.
 func (a *App) peekOverlay(c *ui.Context) {
 	a.mu.Lock()
 	st := a.peek
@@ -133,7 +133,12 @@ func (a *App) peekOverlay(c *ui.Context) {
 	}
 	t := a.T
 	width, height := a.W*0.8, a.H*0.8
-	panel := a.card(c, width, height).Absolute().Top((a.H - height) / 2).Left((a.W - width) / 2).Clip()
+	// The card is ours, and it is one surface: the terminal's own background,
+	// on which the bar and the view under it both sit, as a pane's header and
+	// its terminal do on the pane's. A band of another colour filled inside the
+	// radius would show through the corners' edge.
+	panel := a.card(c, width, height).Background(t.Background).
+		Absolute().Top((a.H - height) / 2).Left((a.W - width) / 2)
 	panel.Children(func() {
 		a.peekBar(c, st)
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
@@ -169,7 +174,7 @@ func (a *App) peekBar(c *ui.Context, st peekState) {
 	if term != nil {
 		word = term.Word()
 	}
-	row := ui.Row(c).Height(34).FillWidth().PaddingX(12).Gap(8).AlignItems(ui.Center).Background(t.Chrome)
+	row := ui.Row(c).Height(34).FillWidth().PaddingX(12).Gap(8).AlignItems(ui.Center)
 	row.Children(func() {
 		a.peekStatus(c, word)
 		if term != nil {
