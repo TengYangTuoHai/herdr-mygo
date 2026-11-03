@@ -118,6 +118,9 @@ func TestSidebarRowsCutLongTextOneLineHigh(t *testing.T) {
 		{"a git chip's branch", 100, branch, func(c *myui.Context) {
 			app.gitChip(c, branch)
 		}},
+		{"a machine chip's name", 70, "a-machine-name-longer-than-the-chip-shows", func(c *myui.Context) {
+			app.machineChip(c, "a-machine-name-longer-than-the-chip-shows")
+		}},
 	}
 	for _, c := range cases {
 		draw := c.draw
@@ -163,5 +166,38 @@ func TestAgentRowsLineUpWithSpaceRows(t *testing.T) {
 	}
 	if got := agent.X - space.X; got != 0 {
 		t.Errorf("the agent's name starts %v past the space's, want them in one column", got)
+	}
+}
+
+// TestAgentRowNamesItsRemoteMachine draws the agents list's rows: a row from
+// another machine names it after the row's name, and a row on this computer
+// names no machine.
+func TestAgentRowNamesItsRemoteMachine(t *testing.T) {
+	RegisterFonts()
+	app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+	draw := func(ag *herdr.Agent) *myui.Tester {
+		tt := myui.NewTester(func(c *myui.Context) {
+			myui.Column(c).Width(268).PaddingX(8).Children(func() {
+				app.agentRow(c, ag)
+			})
+		}, 400, 120)
+		tt.Frame()
+		return tt
+	}
+
+	remote := draw(&herdr.Agent{SpaceName: "build", Machine: "gpu", Status: "working"})
+	texts := remote.Texts()
+	if len(texts) != 2 || texts[0] != "build" || texts[1] != "gpu" {
+		t.Fatalf("a remote agent's row must name its machine after its name: %q", texts)
+	}
+	name, _ := remote.Find("build")
+	machine, _ := remote.Find("gpu")
+	if machine.X < name.X {
+		t.Errorf("the machine chip starts at %v, before the name at %v", machine.X, name.X)
+	}
+
+	local := draw(&herdr.Agent{SpaceName: "notes", Status: "working"})
+	if texts := local.Texts(); len(texts) != 1 || texts[0] != "notes" {
+		t.Fatalf("an agent on this computer names no machine: %q", texts)
 	}
 }

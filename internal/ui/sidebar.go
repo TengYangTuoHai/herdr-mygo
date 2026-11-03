@@ -357,11 +357,27 @@ func (a *App) agentRow(c *ui.Context, ag *herdr.Agent) {
 			color = t.Muted
 		}
 		ui.Text(c, name).FontSize(12.5).TextColor(color).Grow(1).MinWidth(0).SingleLine()
+		// The list mixes every machine: a row from elsewhere says which one.
+		if ag.Machine != "" {
+			a.machineChip(c, ag.Machine)
+		}
 		a.agentStatus(c, ag.Status)
 	})
 	if row.Clicked() {
 		a.S.FocusPane(ag.Pane)
 	}
+}
+
+// machineChip is the machine an agent runs on, as one compact chip the
+// height of a space's git chip. An agent on this computer has none.
+func (a *App) machineChip(c *ui.Context, name string) {
+	t := a.T
+	ui.Row(c).Height(17).PaddingX(4).Gap(3).Radius(4).Border(1, t.Border).AlignItems(ui.Center).
+		Shrink(1).MinWidth(0).Children(func() {
+		a.icon(c, "server", 9, t.Dim)
+		ui.Text(c, name).FontSize(10).TextColor(t.Muted).MaxWidth(92).
+			SingleLine().Shrink(1).MinWidth(0)
+	})
 }
 
 // agentStatus is the working spinner, the Needs you pill, the idle ring or

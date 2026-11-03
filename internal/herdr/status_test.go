@@ -169,3 +169,33 @@ func TestAgentsListKeepsProgramWords(t *testing.T) {
 		t.Fatalf("agents: %+v", list)
 	}
 }
+
+// An agent on a remote machine's space carries that machine's name; an agent
+// on this computer carries none.
+func TestAgentsListCarriesTheMachineOfARemoteSpace(t *testing.T) {
+	remote := "gpu"
+	s := sessionWithOnePane(reportedRecord)
+	var term Terminal
+	if err := json.Unmarshal([]byte(`{"address":"t11","state":"live","labels":{},"status":{"state":"idle"},"turn":0}`), &term); err != nil {
+		t.Fatal(err)
+	}
+	p2 := &Node{ID: "p2", Type: "block", Content: &NodeContent{Terminal: "t11"}}
+	tb2 := &Tab{ID: "gpu/tb2", Root: &Node{ID: "gpu/tb2", Type: "row", Children: []*Node{p2}}}
+	s.spaces = append(s.spaces, &Space{ID: "gpu/sp2", Machine: &remote, Tabs: []*Tab{tb2}})
+	s.terminals["t11"] = &term
+	s.mu.Lock()
+	list := s.agentsLocked()
+	s.mu.Unlock()
+	if len(list) != 2 {
+		t.Fatalf("agents: got %d, want 2", len(list))
+	}
+	for _, ag := range list {
+		want := ""
+		if ag.Space == "gpu/sp2" {
+			want = "gpu"
+		}
+		if ag.Machine != want {
+			t.Fatalf("agent %s of %q: machine %q, want %q", ag.Pane, ag.Space, ag.Machine, want)
+		}
+	}
+}

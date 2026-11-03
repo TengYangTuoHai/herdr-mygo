@@ -144,7 +144,9 @@ Worktrees indent under their checkout with `├─`/`└─`. Empty/unknown:
 sections "Needs you" / "Done" / "Working" / "Idle": headers h30 `px8 pt8`
 11 medium colored by status with a count; rows h26 `px8 gap8 radius8` 2 px
 apart, the height and inset of a space's row: program icon 14,
-"space · detail" 12.5 (idle muted), status at right:
+"space · detail" 12.5 (idle muted), machine chip when the agent is on
+another machine (h17 `px4 gap3 radius4 border1`, server 9, name 10 muted
+cut to one line; this computer's agents have none), status at right:
 spinner 12 working, `Needs you` pill (h18 px6 radius5, blocked at 15 %
 alpha), 7 px ring idle, 7 px dot done. Empty text 12 dim:
 "No agent status yet. Agents show up here when they report their status.

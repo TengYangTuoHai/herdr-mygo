@@ -61,6 +61,7 @@ type Agent struct {
 	Pane      string  `json:"pane"`
 	Space     string  `json:"space"`
 	SpaceName string  `json:"space_name"`
+	Machine   string  `json:"machine,omitempty"` // "" is this computer
 	Tab       string  `json:"tab"`
 	TabIndex  int     `json:"tab_index"`
 	TabName   string  `json:"tab_name"`
@@ -599,6 +600,7 @@ func (s *Session) agentsLocked() []*Agent {
 					Pane:      b.ID,
 					Space:     sp.ID,
 					SpaceName: spaceNameWith(sp, s.terminals, home),
+					Machine:   SpaceMachine(sp),
 					Tab:       t.ID,
 					TabIndex:  ti + 1,
 					TabName:   TabName(t, ti+1),
