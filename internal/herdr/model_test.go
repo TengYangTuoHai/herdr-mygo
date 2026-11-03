@@ -29,3 +29,18 @@ func TestSpaceNameHome(t *testing.T) {
 		t.Fatalf("named space: %q", got)
 	}
 }
+
+func TestTerminalMachine(t *testing.T) {
+	cases := []struct{ addr, want string }{
+		{"t7", ""},
+		{"", ""},
+		{"vps/t7", "vps"},
+		{"4090/t12", "4090"},
+		{"/t7", ""},
+	}
+	for _, c := range cases {
+		if got := TerminalMachine(c.addr); got != c.want {
+			t.Errorf("TerminalMachine(%q) = %q, want %q", c.addr, got, c.want)
+		}
+	}
+}

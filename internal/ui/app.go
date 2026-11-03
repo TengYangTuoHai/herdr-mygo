@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/terminal"
+	"github.com/egoist/mygo/transfer"
 	"github.com/egoist/mygo/ui"
 
 	"herdr-mygo/internal/herdr"
@@ -848,12 +849,20 @@ func (a *App) startTerminal(key string, p herdr.PaneInfo) {
 		a.toast("Cannot show the terminal", err.Error(), "error")
 		return
 	}
-	term, err := terminal.New(terminal.Options{
+	var term *terminal.Terminal
+	term, err = terminal.New(terminal.Options{
 		Conn:         conn,
 		Font:         terminal.Font{Family: TerminalFont, Size: 14},
 		Theme:        terminalTheme(t),
 		Padding:      terminal.Padding{X: 14, Y: 12},
 		PaddingColor: terminal.PaddingExtend,
+		// A paste that holds an image is taken for a pane on another
+		// machine, whose program cannot read this computer's clipboard
+		// (pasteImage). term is set by New, before any frame can draw
+		// the terminal that a paste comes from.
+		OnPaste: func(d transfer.Data) bool {
+			return a.pasteImage(term, p.Terminal, d)
+		},
 	})
 	if err != nil {
 		_ = conn.Close()
