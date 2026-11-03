@@ -194,6 +194,11 @@ func (a *App) overlays(c *ui.Context) {
 				a.CloseOverlay()
 			}
 			a.filesOverlay(c)
+		case "peek":
+			if backdrop.Clicked() {
+				a.CloseOverlay()
+			}
+			a.peekOverlay(c)
 		case "changes":
 			if backdrop.Clicked() {
 				a.CloseOverlay()

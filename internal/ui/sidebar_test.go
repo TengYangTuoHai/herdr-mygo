@@ -345,14 +345,14 @@ func TestSubAgentRowIsIndentedUnderItsParent(t *testing.T) {
 	}
 }
 
-// TestSubAgentRowTakesAClick gives the row a worker hangs under the pointer its
-// parent's row has, and a click asks for a pane to look at it in: it has none
-// of its own, so the list's own click cannot focus it.
-func TestSubAgentRowTakesAClick(t *testing.T) {
+// TestSubAgentRowPeeksAtItsWorker draws a worker's row: a click looks at the
+// worker over the tab, as Herdr's agents list does, and gives it no pane
+// before the peek's own keep asks for one.
+func TestSubAgentRowPeeksAtItsWorker(t *testing.T) {
 	RegisterFonts()
 	app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
 	ag := &herdr.Agent{SpaceName: "a-space", Status: "done"}
-	sub := subRow{Term: worker("t2", "t1", "w-core-agents-visible"), Lines: []string{"└"}}
+	sub := subRow{Term: worker("t2", "t1", "w-core-agents-visible"), Lines: []string{"\u2514"}}
 	tt := myui.NewTester(func(c *myui.Context) {
 		myui.Column(c).Width(268).PaddingX(8).Gap(2).Children(func() {
 			app.agentRow(c, ag)
@@ -368,31 +368,18 @@ func TestSubAgentRowTakesAClick(t *testing.T) {
 	at := [2]float32{name.X + 2, name.Y + name.H/2}
 	tt.Move(at[0], at[1])
 	tt.Frame()
-	if got := tt.Cursor(); got != myui.CursorPointer {
-		t.Errorf("the pointer is %v over a sub-agent, want the parent row's pointer", got)
+	// Herdr's sub-row takes the hover surface, and no pointer: it is the
+	// click that says what it does.
+	if got := tt.Cursor(); got == myui.CursorPointer {
+		t.Errorf("the pointer is %v over a sub-agent, want the row's own", got)
 	}
 
-	// The click asks the session for a pane; this session holds no terminal
-	// to give one to, so the window says why instead of doing nothing.
 	tt.ClickAt(at[0], at[1])
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		app.mu.Lock()
-		notes := append([]Toast(nil), app.notes...)
-		app.mu.Unlock()
-		if len(notes) > 0 {
-			if notes[0].Title != "Cannot show the sub-agent" {
-				t.Fatalf("the click said %q: %s", notes[0].Title, notes[0].Body)
-			}
-			if !strings.Contains(notes[0].Body, "no running terminal") {
-				t.Fatalf("the click failed for another reason: %s", notes[0].Body)
-			}
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("clicking the sub-agent's row did nothing")
-		}
-		time.Sleep(5 * time.Millisecond)
-		tt.Frame()
+	tt.Frame()
+	if app.overlay != "peek" {
+		t.Fatalf("the click opened %q, want the peek", app.overlay)
+	}
+	if addr := app.peek.addr; addr != "t2" {
+		t.Errorf("the peek looks at %q, want t2", addr)
 	}
 }

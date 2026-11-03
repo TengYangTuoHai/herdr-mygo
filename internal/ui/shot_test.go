@@ -28,6 +28,10 @@ func TestShot(t *testing.T) {
 	if overlay := os.Getenv("SHOT_OVERLAY"); overlay != "" {
 		app.OpenOverlay(overlay)
 	}
+	if peek := os.Getenv("SHOT_PEEK"); peek != "" {
+		app.peekTerminal(peek)
+		time.Sleep(2 * time.Second)
+	}
 	if os.Getenv("SHOT_SIDEBAR") == "collapsed" {
 		app.SidebarOpen = false
 		app.sidebarShown = 0

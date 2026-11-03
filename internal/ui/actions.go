@@ -331,6 +331,9 @@ func (a *App) ToggleOverlay(name string) {
 
 // CloseOverlay closes the overlay on top.
 func (a *App) CloseOverlay() {
+	if a.overlay == "peek" {
+		a.dropPeek()
+	}
 	a.overlay = ""
 	a.mu.Lock()
 	a.mach.term = ""
