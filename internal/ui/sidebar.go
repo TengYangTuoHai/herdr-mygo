@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -310,29 +311,141 @@ var agentSections = []struct {
 	{"idle", "Idle"},
 }
 
-// agentGroups draws the agents by priority, under section headers.
+// agentGroups draws the agents by priority, under section headers, each
+// agent's own sub-agents under its row.
 func (a *App) agentGroups(c *ui.Context, list []*herdr.Agent) {
 	t := a.T
-	for _, section := range agentSections {
+	all := a.S.Terminals()
+	shown := map[string]bool{}
+	for _, ag := range list {
+		shown[ag.Address] = true
+	}
+	// A parent takes its most urgent sub-agent's place in the list.
+	section := map[string]string{}
+	subs := map[string][]subRow{}
+	for _, ag := range list {
+		subs[ag.Address] = subAgents(all, shown, ag.Address, nil, 0)
+		section[ag.Address] = sectionWord(ag.Status, subs[ag.Address])
+	}
+	for _, sec := range agentSections {
 		var mine []*herdr.Agent
 		for _, ag := range list {
-			if ag.Status == section.word {
+			if section[ag.Address] == sec.word {
 				mine = append(mine, ag)
 			}
 		}
 		if len(mine) == 0 {
 			continue
 		}
+		sort.SliceStable(mine, func(i, j int) bool { return mine[i].Seq > mine[j].Seq })
 		head := ui.Row(c).Height(30).FillWidth().Padding(8, 8, 0, 8).Gap(6).AlignItems(ui.Center)
 		head.Children(func() {
-			ui.Text(c, section.label).FontSize(11).FontWeight(500).TextColor(t.Status(section.word))
+			ui.Text(c, sec.label).FontSize(11).FontWeight(500).TextColor(t.Status(sec.word))
 			ui.Text(c, itoa(len(mine))).FontSize(11).TextColor(t.Dim)
 			ui.Spacer(c)
 		})
 		for _, ag := range mine {
 			a.agentRow(c, ag)
+			for _, sub := range subs[ag.Address] {
+				a.subAgentRow(c, sub)
+			}
 		}
 	}
+}
+
+// subRow is a sub-agent under its parent's row, with the tree lines in front
+// of it.
+type subRow struct {
+	Term  *herdr.Terminal
+	Lines []string
+}
+
+// subWord is a sub-agent's word as the list shows it: an error reads as
+// blocked, and done as idle — a sub-agent reports to its parent, and the
+// parent's done is the news (as Herdr's agents list does).
+func subWord(word string) string {
+	switch word {
+	case "error":
+		return "blocked"
+	case "done":
+		return "idle"
+	}
+	return word
+}
+
+// sectionWord is the section a row is drawn in: its own word, or the more
+// urgent word of a sub-agent under it.
+func sectionWord(word string, subs []subRow) string {
+	for _, sub := range subs {
+		if w := subWord(sub.Term.Word()); herdr.StatusRank(w) > herdr.StatusRank(word) {
+			word = w
+		}
+	}
+	return word
+}
+
+// subAgents lists the live terminals an agent started, depth first, each with
+// the lines that lead to it: a worker started from an agent's terminal has no
+// pane of its own, and Herdr lists it under its parent. A sub-agent a pane
+// already shows is a row of its own, so only its children are added there.
+func subAgents(all []*herdr.Terminal, shown map[string]bool, parent string, lead []string, depth int) []subRow {
+	if depth > 8 {
+		return nil
+	}
+	var kids []*herdr.Terminal
+	for _, term := range all {
+		if term.State != "live" || term.Parent == nil || *term.Parent != parent {
+			continue
+		}
+		kids = append(kids, term)
+	}
+	var out []subRow
+	for i, term := range kids {
+		line, next := "├", "│"
+		if i == len(kids)-1 {
+			line, next = "└", ""
+		}
+		lines := append(append([]string{}, lead...), line)
+		if !shown[term.Address] {
+			out = append(out, subRow{Term: term, Lines: lines})
+		}
+		out = append(out, subAgents(all, shown, term.Address, append(append([]string{}, lead...), next), depth+1)...)
+	}
+	return out
+}
+
+// subAgentRow is a sub-agent under the agent that started it: indented, with
+// the tree lines that lead to it, its program's logo and its name. It has no
+// pane, so there is nothing to focus from here.
+func (a *App) subAgentRow(c *ui.Context, sub subRow) {
+	t := a.T
+	term := sub.Term
+	name := ""
+	if term.Name != nil {
+		name = *term.Name
+	}
+	if name == "" && term.Template != nil {
+		name = *term.Template
+	}
+	if name == "" {
+		name = herdr.Program(term).Name
+	}
+	if name == "" {
+		name = term.Address
+	}
+	row := ui.Row(c).Height(26).FillWidth().Padding(0, 8, 0, 14).Radius(8).AlignItems(ui.Center)
+	row.Children(func() {
+		for _, line := range sub.Lines {
+			ui.Box(c).Width(11).Height(26).Center().Children(func() {
+				ui.Text(c, line).FontSize(12).TextColor(t.Input)
+			})
+		}
+		ui.Box(c).Width(8)
+		a.programIcon(c, herdr.Program(term), 14, t.Foreground)
+		ui.Box(c).Width(8)
+		ui.Text(c, name).FontSize(12.5).TextColor(t.Muted).Grow(1).MinWidth(0).SingleLine()
+		a.agentStatus(c, subWord(term.Word()))
+	})
 }
 
 // agentRow is one agent: the same 26 px row, radius 8 and 2 px gap as the

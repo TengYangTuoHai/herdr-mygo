@@ -843,7 +843,7 @@ func (s *Session) Agents() []*Agent {
 	defer s.mu.Unlock()
 	out := append([]*Agent(nil), s.agents...)
 	sort.SliceStable(out, func(i, j int) bool {
-		ri, rj := statusRank(out[i].Status), statusRank(out[j].Status)
+		ri, rj := StatusRank(out[i].Status), StatusRank(out[j].Status)
 		if ri != rj {
 			return ri > rj
 		}

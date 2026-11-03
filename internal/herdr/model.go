@@ -295,8 +295,9 @@ func (s *Space) firstCwd(terminals map[string]*Terminal) string {
 	return s.Folder
 }
 
-// statusRank is Herdr's attention order: blocked > done > working > idle.
-func statusRank(s string) int {
+// StatusRank is Herdr's attention order for a status word: blocked > done >
+// working > idle, 0 for a word the app does not know.
+func StatusRank(s string) int {
 	switch s {
 	case "blocked":
 		return 4
@@ -312,7 +313,7 @@ func statusRank(s string) int {
 
 // worse returns the more urgent of two status words.
 func worse(a, b string) string {
-	if statusRank(b) > statusRank(a) {
+	if StatusRank(b) > StatusRank(a) {
 		return b
 	}
 	return a

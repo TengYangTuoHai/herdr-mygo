@@ -82,7 +82,9 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
 - The agents list from terminals that report status (OSC 7501), by priority,
   each agent with its own logo: Herdr's program table's icons (Claude Code,
   Codex, Pi, OpenCode, Grok, Gemini, …), full color where the mark is, and
-  DeepSeek's for `dsh-tui`/`dsh`; a row from another machine names it
+  DeepSeek's for `dsh-tui`/`dsh`; a row from another machine names it, and
+  the workers an agent started (`hc run --bg …` from its terminal) hang under
+  its row with the lines that lead to them
 - Command palette with fuzzy search, group headers and key chips
 - Go-to-space-or-tab picker, new-tab menu, right-click menus on spaces,
   tabs and panes, prompt dialogs, toasts

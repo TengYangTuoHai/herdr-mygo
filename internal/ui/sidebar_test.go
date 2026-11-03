@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -199,5 +200,111 @@ func TestAgentRowNamesItsRemoteMachine(t *testing.T) {
 	local := draw(&herdr.Agent{SpaceName: "notes", Status: "working"})
 	if texts := local.Texts(); len(texts) != 1 || texts[0] != "notes" {
 		t.Fatalf("an agent on this computer names no machine: %q", texts)
+	}
+}
+
+// strp is a pointer to a string, for the terminal records' nullable fields.
+func strp(s string) *string { return &s }
+
+// worker is a terminal as herdr-core lists one: a program started from
+// another terminal carries that terminal as its parent.
+func worker(address, parent, name string) *herdr.Terminal {
+	term := &herdr.Terminal{Address: address, State: "live", Name: strp(name)}
+	if parent != "" {
+		term.Parent = strp(parent)
+	}
+	return term
+}
+
+// TestSubAgentsHangUnderTheirParent draws the tree the agents list adds under
+// an agent: its live sub-agents, depth first, with the lines that lead to
+// them. A sub-agent a pane already shows is a row of its own, so only its own
+// sub-agents are added there, and a finished one is gone.
+func TestSubAgentsHangUnderTheirParent(t *testing.T) {
+	root := worker("t1", "", "router")
+	first := worker("t2", "t1", "worker one")
+	first.Status = &herdr.Status{State: "working"}
+	shown := worker("t3", "t1", "given a pane")
+	deep := worker("t4", "t2", "its own worker")
+	inside := worker("t5", "t3", "inside the pane's worker")
+	gone := worker("t6", "t1", "finished")
+	gone.State = "finished"
+	all := []*herdr.Terminal{root, first, shown, deep, inside, gone}
+
+	rows := subAgents(all, map[string]bool{"t3": true}, "t1", nil, 0)
+	want := []struct {
+		address string
+		lines   []string
+	}{
+		{"t2", []string{"├"}},
+		{"t4", []string{"│", "└"}},
+		// t3 has a pane: no row of its own here, but its worker hangs under
+		// the last line still.
+		{"t5", []string{"└"}},
+	}
+	if len(rows) != len(want) {
+		t.Fatalf("sub-agents: got %d, want %d: %+v", len(rows), len(want), rows)
+	}
+	for i, w := range want {
+		if got := rows[i].Term.Address; got != w.address {
+			t.Fatalf("row %d: %s, want %s", i, got, w.address)
+		}
+		if got := strings.Join(rows[i].Lines, ""); got != strings.Join(w.lines, "") {
+			t.Fatalf("row %d's lines: %q, want %q", i, got, strings.Join(w.lines, ""))
+		}
+	}
+}
+
+// TestSubAgentWordsReadAsTheListShowsThem keeps a sub-agent's word: an error
+// is a block, and done is idle, because it reports to its parent.
+func TestSubAgentWordsReadAsTheListShowsThem(t *testing.T) {
+	cases := map[string]string{"error": "blocked", "done": "idle", "working": "working", "blocked": "blocked", "": ""}
+	for word, want := range cases {
+		if got := subWord(word); got != want {
+			t.Errorf("subWord(%q) = %q, want %q", word, got, want)
+		}
+	}
+	subs := []subRow{{Term: &herdr.Terminal{Status: &herdr.Status{State: "error"}}}}
+	if got := sectionWord("working", subs); got != "blocked" {
+		t.Errorf("a worker in error puts its parent under %q, want blocked", got)
+	}
+	if got := sectionWord("done", nil); got != "done" {
+		t.Errorf("an agent with no workers keeps its word: %q", got)
+	}
+}
+
+// TestSubAgentRowIsIndentedUnderItsParent draws a sub-agent's row: it says the
+// worker's name, its program's logo and its status, shifted in from the
+// parent's name by the tree line.
+func TestSubAgentRowIsIndentedUnderItsParent(t *testing.T) {
+	RegisterFonts()
+	app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+	ag := &herdr.Agent{SpaceName: "a-space", Status: "done"}
+	sub := subRow{Term: worker("t2", "t1", "w-core-agents-visible"), Lines: []string{"└"}}
+	sub.Term.Status = &herdr.Status{App: "pi", State: "working"}
+	tt := myui.NewTester(func(c *myui.Context) {
+		myui.Column(c).Width(268).PaddingX(8).Gap(2).Children(func() {
+			app.agentRow(c, ag)
+			app.subAgentRow(c, sub)
+		})
+	}, 400, 200)
+	tt.Frame()
+
+	parent, ok := tt.Find("a-space")
+	if !ok {
+		t.Fatal("the parent row is not drawn")
+	}
+	name, ok := tt.Find("w-core-agents-visible")
+	if !ok {
+		t.Fatal("the sub-agent's row is not drawn")
+	}
+	if name.Y-parent.Y != 28 {
+		t.Errorf("the sub-agent's row starts %v below its parent's, want 28: 26 px rows with the 2 px gap", name.Y-parent.Y)
+	}
+	if name.X <= parent.X {
+		t.Errorf("the sub-agent's name starts at %v, not indented past the parent's at %v", name.X, parent.X)
+	}
+	if _, ok := tt.Find("└"); !ok {
+		t.Error("the tree line that leads to the sub-agent is not drawn")
 	}
 }
