@@ -335,12 +335,16 @@ func (a *App) settingsKeycap(c *ui.Context, label string) {
 // settingsNav is the sections list.
 func (a *App) settingsNav(c *ui.Context) {
 	t := a.T
+	// Rows are 2 px apart, as the sidebar's are, so one row's hover or
+	// selection never runs into the next.
 	nav := ui.Column(c).Width(settingsNavWidth).FillHeight().Background(t.Chrome).
-		Padding(8, 10, 12, 10)
+		Padding(8, 10, 12, 10).Gap(2)
 	nav.Children(func() {
 		navGroup := func(label string) {
+			// The group keeps its 6 px of air under it: the column's gap
+			// adds to this padding.
 			ui.Text(c, strings.ToUpper(label)).FontSize(10.5).FontWeight(600).
-				LetterSpacing(0.6).TextColor(t.Dim).Padding(14, 10, 6, 10)
+				LetterSpacing(0.6).TextColor(t.Dim).Padding(14, 10, 4, 10)
 		}
 		navRow := func(id, label, icon string) {
 			on := a.settings.Section == id

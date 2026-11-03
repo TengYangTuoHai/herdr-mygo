@@ -1,6 +1,12 @@
 package ui
 
-import "testing"
+import (
+	"testing"
+
+	myui "github.com/egoist/mygo/ui"
+
+	"herdr-mygo/internal/herdr"
+)
 
 func TestDefaultSettings(t *testing.T) {
 	s := defaultSettings()
@@ -88,5 +94,31 @@ func TestSettingsMoveStopsAtEnds(t *testing.T) {
 	a.settingsMove(1)
 	if a.settings.SearchAt != results-1 {
 		t.Fatalf("moved past the last result to %d", a.settings.SearchAt)
+	}
+}
+
+// TestSettingsNavRowsKeepTheirGap draws the sections list: its rows sit 2 px
+// apart, as the sidebar's do, so a row's hover or selection never runs into
+// the row above or below it.
+func TestSettingsNavRowsKeepTheirGap(t *testing.T) {
+	RegisterFonts()
+	app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+	tt := myui.NewTester(func(c *myui.Context) {
+		myui.Column(c).Width(settingsNavWidth).Height(420).Children(func() { app.settingsNav(c) })
+	}, 400, 500)
+	tt.Frame()
+	look, ok := tt.Find("Look")
+	if !ok {
+		t.Fatal("the Look row is not drawn")
+	}
+	terminal, ok := tt.Find("Terminal")
+	if !ok {
+		t.Fatal("the Terminal row is not drawn")
+	}
+	if got := terminal.X - look.X; got != 0 {
+		t.Errorf("the labels start %v apart, want them in one column", got)
+	}
+	if got := terminal.Y - look.Y; got != 36 {
+		t.Errorf("the rows are %v apart, want 36: 34 px rows with the 2 px gap", got)
 	}
 }

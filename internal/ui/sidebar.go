@@ -133,7 +133,10 @@ func (a *App) spaceRow(c *ui.Context, sp *herdr.Space, places []*herdr.Space, st
 				}
 				ui.Text(c, letter).FontSize(8.5).FontWeight(700).TextColor(ui.RGB(255, 255, 255))
 			})
-			ui.Text(c, name).FontSize(12.5).TextColor(t.Foreground).MaxWidth(110).Ellipsis("…")
+			// SingleLine keeps a long name on its row's height: it ends in
+			// an ellipsis rather than wrapping the row into two.
+			ui.Text(c, name).FontSize(12.5).TextColor(t.Foreground).MaxWidth(110).
+				SingleLine().Shrink(1).MinWidth(0)
 			if status := statuses[sp.ID]; status != "" {
 				ui.Box(c).Size(6, 6).Radius(3).Background(t.Status(status))
 			}
@@ -187,9 +190,13 @@ func (a *App) spaceRow(c *ui.Context, sp *herdr.Space, places []*herdr.Space, st
 // gitChip is a space's unusual git as one compact chip.
 func (a *App) gitChip(c *ui.Context, tail string) {
 	t := a.T
-	ui.Row(c).Height(17).PaddingX(4).Gap(3).Radius(4).Border(1, t.Border).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Height(17).PaddingX(4).Gap(3).Radius(4).Border(1, t.Border).AlignItems(ui.Center).
+		Shrink(1).MinWidth(0).Children(func() {
 		a.icon(c, "git-branch", 9, t.Dim)
-		ui.Text(c, tail).FontSize(10).Font("JetBrains Mono").TextColor(t.Muted).MaxWidth(92).Ellipsis("…")
+		// A long branch is cut, never wrapped: the chip stays one line high
+		// however little room the name leaves it.
+		ui.Text(c, tail).FontSize(10).Font("JetBrains Mono").TextColor(t.Muted).MaxWidth(92).
+			SingleLine().Shrink(1).MinWidth(0)
 	})
 }
 
@@ -274,7 +281,7 @@ func (a *App) agents(c *ui.Context) {
 			})
 		}
 		ui.Scroll(c).Grow(1).Children(func() {
-			ui.Column(c).FillWidth().PaddingX(8).Children(func() {
+			ui.Column(c).FillWidth().PaddingX(8).Gap(2).Children(func() {
 				a.agentGroups(c, list)
 			})
 		})
@@ -328,10 +335,11 @@ func (a *App) agentGroups(c *ui.Context, list []*herdr.Agent) {
 	}
 }
 
-// agentRow is one agent.
+// agentRow is one agent: the same 26 px row, radius 8 and 2 px gap as the
+// spaces above it, so the two lists share one hover surface.
 func (a *App) agentRow(c *ui.Context, ag *herdr.Agent) {
 	t := a.T
-	row := ui.Row(c).Height(30).FillWidth().PaddingX(8).Gap(9).Radius(8).AlignItems(ui.Center)
+	row := ui.Row(c).Height(26).FillWidth().PaddingX(8).Gap(8).Radius(8).AlignItems(ui.Center)
 	if ag.Focused {
 		row.Background(t.Selected)
 	} else if row.Hovered() {
@@ -339,7 +347,7 @@ func (a *App) agentRow(c *ui.Context, ag *herdr.Agent) {
 	}
 	row.Cursor(ui.CursorPointer)
 	row.Children(func() {
-		a.programIcon(c, ag.Program, 16, t.Foreground)
+		a.programIcon(c, ag.Program, 14, t.Foreground)
 		name := ag.SpaceName
 		if !strings.HasPrefix(ag.TabName, ag.SpaceName) && ag.TabName != "" && ag.TabName != "1" {
 			name += " · " + ag.TabName
@@ -348,7 +356,7 @@ func (a *App) agentRow(c *ui.Context, ag *herdr.Agent) {
 		if ag.Status == "idle" && !ag.Focused {
 			color = t.Muted
 		}
-		ui.Text(c, name).FontSize(13).TextColor(color).Grow(1).Ellipsis("…")
+		ui.Text(c, name).FontSize(12.5).TextColor(color).Grow(1).MinWidth(0).SingleLine()
 		a.agentStatus(c, ag.Status)
 	})
 	if row.Clicked() {

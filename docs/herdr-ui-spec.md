@@ -72,7 +72,7 @@ Measured from screenshots (logical px at 1280×820, shot is 2×):
 | sidebar divider | 268–269, `border` |
 | brand row | y 0–46 |
 | spaces header | y 46–77 (`h31`, `pl16 pr10`) |
-| spaces list | px 8, rows h30 |
+| spaces list | px 8, rows h26, 2 px apart |
 | agents section | starts y 398.5 (border-top 1 px), header `h41 pt14 pb5 px16` |
 | footer | y 751–820 (border-top 1 px, px8 pt4 pb8, rows h28) |
 | tab bar | y 0–42, `chrome`, border-bottom 1 px, `px10 gap3` |
@@ -123,10 +123,12 @@ sidebar toggle 26×26 (collapses the sidebar to 76 on macOS, 44 elsewhere).
 Below 160 px the sidebar is a rail: no labels, numbered spaces, agents as
 numbers + status, footer icon only.
 
-**Spaces** (`spaces`): header 31 px, "Spaces" 11.5 dim, + 26×26. Rows h30
-`px8 radius8 gap9`: 18×18 radius-5 avatar in a space color with the first
-letter (10.5 bold white), name 13, and only unusual git at the right
-(11.5 dim: repo · branch ↑ahead ↓behind, skipping the name, master/main).
+**Spaces** (`spaces`): header 31 px, "Spaces" 11.5 dim, + 26×26. Rows h26
+`px8 radius8`, 2 px apart: 14×14 radius-4 avatar in a space color with the
+first letter (8.5 bold white), name 12.5 cut to one line, and only unusual
+git at the right as a chip (h17 `px4 gap3 radius4 border1`: branch 9, repo ·
+branch ↑ahead ↓behind 10 mono cut to one line, skipping the name,
+master/main).
 Selected uses `selected`, hover `hover`; drag reorders (accent line at the
 drop edge) among the spaces of the same machine, and a space dropped on its
 machine's header goes to the top of that list; right-click menu Rename / New
@@ -140,8 +142,9 @@ Worktrees indent under their checkout with `├─`/`└─`. Empty/unknown:
 **Agents** (`agents`): border-top 1; header 41 (`pt14 pb5 px16`), "Agents"
 11.5 medium dim, sort icon 14 (Priority, Grouped by space). Priority
 sections "Needs you" / "Done" / "Working" / "Idle": headers h30 `px8 pt8`
-11 medium colored by status with a count; rows h30 `px8 gap9 radius8`:
-program icon 16, "space · detail" 13 (idle muted), status at right:
+11 medium colored by status with a count; rows h26 `px8 gap8 radius8` 2 px
+apart, the height and inset of a space's row: program icon 14,
+"space · detail" 12.5 (idle muted), status at right:
 spinner 12 working, `Needs you` pill (h18 px6 radius5, blocked at 15 %
 alpha), 7 px ring idle, 7 px dot done. Empty text 12 dim:
 "No agent status yet. Agents show up here when they report their status.
@@ -218,9 +221,11 @@ text), divider, Appearance segmented (System/Light/Dark), Size stepper
 (− 100% +), pages dots and "Next →" (solid button). 4 pages; it sets
 `frame.welcomed`.
 
-**Settings**: 860 wide, 80 % high, centered: left column 190 `chrome`
-(padding 16/8, title 16 semibold, sections Look/Machines/Alerts/Updates/
-Privacy rows h30 radius7, selected `selected`), 1 px border, right pane
+**Settings**: 1080 wide, 720 high, centered: left column 224 `chrome`
+(padding 8/10/12, groups App/Herdr over the sections Look/Terminal and
+Machines/Alerts/Updates/Privacy, rows h34 `px10 gap10 radius8` 2 px apart so
+their surfaces never merge, selected `selected`, hover `hover`; version row
+at the foot behind a 1 px border), 1 px border, right pane
 `p24 28` gap 16: section title 18, rows of label 13 + about 11.5 dim on
 the left and controls on the right (segmented, theme swatches 92×48,
 fonts, zoom stepper).
