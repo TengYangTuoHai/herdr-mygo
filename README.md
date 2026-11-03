@@ -96,6 +96,11 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
 - The app keeps its own files, apart from herdr-app's, under
   `~/.config/herdr-mygo`: `settings.json` written as a setting changes, the
   keys, and the screen's view
+- `herdr-app do` reaches the window: it answers on
+  `$HERDR_APP_HOME/herdr-app.sock` (else `~/.config/herdr-app`), where that
+  command looks, one JSON line each way. `tab.new` starts a tab and
+  `terminal.keep` gives a terminal that is already running — a worker the
+  core started — a pane, so it lands in the window
 - Files tree with file preview; Changes with git status, diff and commit
 - The sidebar collapses to nothing — ⌘B, or the button in the brand bar —
   easing closed as MyGo's sidebar example does (`Animate` + `ClipX`), and
@@ -118,8 +123,10 @@ are JavaScript mods. This port draws Herdr's shipped interface in Go, so:
   machines); Files reads remote folders one level at a time through
   `machine.exec`, so it has no git-ignore dimming and refreshes every few
   seconds rather than on every change.
-- No session settling, update checks, telemetry, or `herdr-app do` control
-  socket. Previews (Files, Changes) are read-only except the commit box.
+- No session settling, update checks or telemetry, and only `tab.new` and
+  `terminal.keep` answer `herdr-app do`: `ls`, `status`, `shot` and the rest
+  of its commands are not here yet. Previews (Files, Changes) are read-only
+  except the commit box.
 - Zoom is not written back to `settings.json` yet, and the Alerts, Updates
   and Privacy controls are presentational: the app has no sound, update
   check or telemetry yet.

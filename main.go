@@ -49,6 +49,7 @@ func main() {
 			return
 		}
 		app.Attach(session)
+		app.ServeControl()
 		if overlay := os.Getenv("HERDR_MYGO_OVERLAY"); overlay != "" {
 			app.OpenOverlay(overlay)
 		}

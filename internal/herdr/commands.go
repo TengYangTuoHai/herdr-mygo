@@ -650,16 +650,22 @@ func (s *Session) ParkTerminal(addr string) {
 	s.mu.Unlock()
 }
 
-// KeepTerminal gives a running terminal a pane in the shown tab.
-func (s *Session) KeepTerminal(addr string) error {
+// KeepTerminal gives a running terminal a pane in the shown tab, and returns
+// the pane's id. It also tells the core to keep the terminal, so a program it
+// loses comes back as a shell in that pane, as Herdr keeps one it was given.
+func (s *Session) KeepTerminal(addr string) (string, error) {
 	sp, tab := s.Active()
 	if sp == nil || tab == nil {
-		return fmt.Errorf("no tab")
+		return "", fmt.Errorf("no tab")
 	}
 	paneID := freshID("p")
-	err := s.label(addr, labelsFor(sp.ID, tab.ID))
-	if err != nil {
-		return err
+	if err := s.label(addr, labelsFor(sp.ID, tab.ID)); err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := s.Core.Call(ctx, "terminal.keep", map[string]any{"terminal": addr, "keep": true}); err != nil {
+		return "", err
 	}
 	s.mu.Lock()
 	pane := &Node{ID: paneID, Type: "block", Content: &NodeContent{Terminal: addr}}
@@ -676,7 +682,7 @@ func (s *Session) KeepTerminal(addr string) error {
 	s.mu.Unlock()
 	s.saveDoc()
 	s.changed()
-	return nil
+	return paneID, nil
 }
 
 // label sets a terminal's labels.
