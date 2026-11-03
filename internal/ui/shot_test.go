@@ -28,6 +28,20 @@ func TestShot(t *testing.T) {
 	if overlay := os.Getenv("SHOT_OVERLAY"); overlay != "" {
 		app.OpenOverlay(overlay)
 	}
+	if section := os.Getenv("SHOT_SECTION"); section != "" {
+		app.settings.Section = section
+	}
+	if search := os.Getenv("SHOT_SEARCH"); search != "" {
+		app.settings.SearchOpen = true
+		app.settings.Search = search
+	}
+	if name := os.Getenv("SHOT_THEME"); name != "" {
+		app.T = ThemeByName(name)
+		termTheme = app.T
+	}
+	if os.Getenv("SHOT_SOUND_OFF") != "" {
+		app.settings.AlertSound = false
+	}
 	if os.Getenv("SHOT_COLLAPSE") != "" {
 		app.agentsCollapsed = true
 	}

@@ -67,10 +67,55 @@ type PromptState struct {
 
 // settingsState is what the Settings screen shows.
 type settingsState struct {
-	Section     string
-	Appearance  int
-	Theme       string
-	ThemeScroll int
+	Section       string
+	Appearance    int
+	Theme         string
+	Accent        string
+	InterfaceFont string
+	InterfaceSize int
+	TerminalFont  string
+	TerminalSize  int
+
+	OptionAsAlt int
+	Clipboard   bool
+	MinContrast float64
+	KeepSSHWarm bool
+
+	AlertDone  bool
+	AlertNeeds bool
+	AlertSound bool
+
+	UpdateChannel   int
+	AutoInstall     bool
+	BackgroundCheck bool
+
+	Telemetry bool
+
+	Search     string
+	SearchOpen bool
+	SearchAt   int
+}
+
+// defaultSettings is the state before the person changes anything.
+func defaultSettings() settingsState {
+	return settingsState{
+		Section:         "look",
+		Theme:           "graphite",
+		Accent:          "#96b2d7",
+		InterfaceFont:   "Geist",
+		InterfaceSize:   13,
+		TerminalFont:    "JetBrains Mono",
+		TerminalSize:    14,
+		Clipboard:       true,
+		MinContrast:     1,
+		KeepSSHWarm:     true,
+		AlertDone:       true,
+		AlertNeeds:      true,
+		AlertSound:      true,
+		AutoInstall:     true,
+		BackgroundCheck: true,
+		Telemetry:       true,
+	}
 }
 
 // pickerState is the go-to-space-or-tab list.
@@ -255,6 +300,11 @@ func (a *App) OpenOverlay(name string) {
 	if name == "palette" {
 		a.palette.Query = ""
 		a.palette.At = 0
+	}
+	if name == "settings" {
+		a.settings.SearchOpen = false
+		a.settings.Search = ""
+		a.settings.SearchAt = 0
 	}
 	a.Repaint()
 }

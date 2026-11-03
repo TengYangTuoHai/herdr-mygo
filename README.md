@@ -85,7 +85,9 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
 - Command palette with fuzzy search, group headers and key chips
 - Go-to-space-or-tab picker, new-tab menu, right-click menus on spaces,
   tabs and panes, prompt dialogs, toasts
-- Settings (look), welcome, keys list
+- Settings for Look, Terminal, Machines, Alerts, Updates and Privacy, with
+  search (⌘F), a theme picker, live controls and the Paper theme; welcome and
+  the keys list
 - Files tree with file preview; Changes with git status, diff and commit
 - Sidebar drag to resize, spaces and machine groups dragged into order,
   window drag on the brand and tab bars, traffic lights where Herdr puts them
@@ -106,7 +108,9 @@ are JavaScript mods. This port draws Herdr's shipped interface in Go, so:
   seconds rather than on every change.
 - No session settling, update checks, telemetry, or `herdr-app do` control
   socket. Previews (Files, Changes) are read-only except the commit box.
-- Zoom and settings are not written back to `settings.json` yet.
+- Zoom and settings are not written back to `settings.json` yet, and the
+  Alerts, Updates and Privacy controls are presentational: the app has no
+  sound, update check or telemetry yet.
 
 ## How it is checked
 

@@ -157,6 +157,11 @@ func (a *App) overlays(c *ui.Context) {
 			}
 			a.machineAddOverlay(c)
 		case "settings":
+			if a.T.Dark {
+				backdrop.Background(ui.RGBA(8, 9, 11, 0.50))
+			} else {
+				backdrop.Background(ui.RGBA(20, 21, 24, 0.30))
+			}
 			if backdrop.Clicked() {
 				a.CloseOverlay()
 			}
@@ -349,7 +354,7 @@ func (a *App) welcomeOverlay(c *ui.Context) {
 				ui.Box(c).Height(1).FillWidth().Background(t.Border)
 				ui.Row(c).Height(52).FillWidth().AlignItems(ui.Center).Children(func() {
 					ui.Text(c, "Appearance").FontSize(13).TextColor(t.Muted).Width(150)
-					a.segmented(c, []string{"System", "Light", "Dark"}, &a.settings.Appearance)
+					a.settingsSegmented(c, []string{"System", "Light", "Dark"}, &a.settings.Appearance)
 				})
 				ui.Row(c).Height(52).FillWidth().AlignItems(ui.Center).Children(func() {
 					ui.Text(c, "Size").FontSize(13).TextColor(t.Muted).Width(150)
@@ -393,172 +398,6 @@ func welcomeFeature(c *ui.Context, t *Theme, icon, title, body string) {
 			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(t.Foreground)
 			ui.Text(c, body).FontSize(12.5).TextColor(t.Dim).Wrap()
 		})
-	})
-}
-
-// segmented draws System / Light / Dark.
-func (a *App) segmented(c *ui.Context, labels []string, value *int) {
-	t := a.T
-	ui.Row(c).Padding(2).Radius(8).Background(t.Raised).Gap(2).Children(func() {
-		for i, label := range labels {
-			item := ui.Box(c).Padding(5, 12).Radius(6)
-			if i == *value {
-				item.Background(t.Chrome).Border(1, t.Border)
-			}
-			item.Cursor(ui.CursorPointer)
-			item.Children(func() {
-				color := t.Muted
-				if i == *value {
-					color = t.Foreground
-				}
-				ui.Text(c, label).FontSize(12.5).TextColor(color).FontWeight(500)
-			})
-			if item.Clicked() {
-				*value = i
-			}
-		}
-	})
-}
-
-// stepper draws − 100% +.
-func (a *App) stepper(c *ui.Context, label string) {
-	t := a.T
-	ui.Row(c).Height(32).Padding(3).Radius(8).Background(t.Raised).Gap(2).AlignItems(ui.Center).Children(func() {
-		minus := ui.Box(c).Size(26, 26).Radius(6).Center()
-		if minus.Hovered() {
-			minus.Background(t.Hover)
-		}
-		minus.Cursor(ui.CursorPointer)
-		minus.Children(func() { ui.Text(c, "−").FontSize(15).TextColor(t.Muted) })
-		if minus.Clicked() {
-			a.zoomBy(1 / 1.1)
-		}
-		ui.Text(c, label).FontSize(12.5).TextColor(t.Foreground).Width(48).TextAlign(ui.Center)
-		plus := ui.Box(c).Size(26, 26).Radius(6).Center()
-		if plus.Hovered() {
-			plus.Background(t.Hover)
-		}
-		plus.Cursor(ui.CursorPointer)
-		plus.Children(func() { ui.Text(c, "+").FontSize(15).TextColor(t.Muted) })
-		if plus.Clicked() {
-			a.zoomBy(1.1)
-		}
-	})
-}
-
-// settingsOverlay is the Settings screen.
-func (a *App) settingsOverlay(c *ui.Context) {
-	t := a.T
-	if a.settings.Section == "" {
-		a.settings.Section = "look"
-	}
-	width, height := float32(860), a.H*0.8
-	panel := a.card(c, width, height).Absolute().Top((a.H - height) / 2).Left((a.W - width) / 2)
-	panel.Children(func() {
-		inside := ui.Row(c).Height(height)
-		inside.Children(func() {
-			ui.Column(c).Width(190).FillHeight().Background(t.Chrome).Padding(16, 8, 8, 8).Gap(2).Children(func() {
-				ui.Text(c, "Settings").FontSize(16).FontWeight(600).TextColor(t.Foreground).Padding(0, 8, 12, 8)
-				sections := []struct{ id, label string }{
-					{"look", "Look"}, {"machines", "Machines"}, {"alerts", "Alerts"},
-					{"updates", "Updates"}, {"privacy", "Privacy"},
-				}
-				for _, s := range sections {
-					row := ui.Row(c).Height(30).FillWidth().PaddingX(8).Radius(7).AlignItems(ui.Center)
-					if a.settings.Section == s.id {
-						row.Background(t.Selected)
-					} else if row.Hovered() {
-						row.Background(t.Hover)
-					}
-					row.Cursor(ui.CursorPointer)
-					row.Children(func() {
-						color := t.Muted
-						if a.settings.Section == s.id {
-							color = t.Foreground
-						}
-						ui.Text(c, s.label).FontSize(13).TextColor(color)
-					})
-					if row.Clicked() {
-						a.settings.Section = s.id
-					}
-				}
-			})
-			ui.Box(c).Width(1).FillHeight().Background(t.Border)
-			ui.Column(c).Grow(1).FillHeight().Padding(24, 28).Gap(16).Children(func() {
-				a.settingsSection(c)
-			})
-		})
-	})
-}
-
-// settingsSection draws the chosen section's controls.
-func (a *App) settingsSection(c *ui.Context) {
-	t := a.T
-	ui.Text(c, map[string]string{
-		"look": "Look", "machines": "Machines", "alerts": "Alerts",
-		"updates": "Updates", "privacy": "Privacy",
-	}[a.settings.Section]).FontSize(18).FontWeight(600).TextColor(t.Foreground)
-	ui.Box(c).Height(1).FillWidth().Background(t.Border)
-	if a.settings.Section == "machines" {
-		a.machinesSection(c)
-		return
-	}
-	if a.settings.Section != "look" {
-		ui.Text(c, "Herdr keeps this in settings.json. Edit the file, or ask an agent to, and the window follows.").
-			FontSize(12.5).TextColor(t.Dim).Wrap()
-		return
-	}
-	a.settingRow(c, "Appearance", "System, or always light or dark", func() {
-		a.segmented(c, []string{"System", "Light", "Dark"}, &a.settings.Appearance)
-	})
-	a.settingRow(c, "Theme", "The colors of the chrome and the terminals", func() {
-		ui.Row(c).Gap(10).Children(func() {
-			for _, name := range []string{"graphite", "ink", "moss", "paper"} {
-				th := ThemeByName(name)
-				swatch := ui.Column(c).Width(92).Gap(6).AlignItems(ui.Center)
-				swatch.Cursor(ui.CursorPointer)
-				swatch.Children(func() {
-					box := ui.Box(c).Size(92, 48).Radius(8).Background(th.Chrome)
-					if a.settings.Theme == name {
-						box.Border(1, t.Accent)
-					} else {
-						box.Border(1, t.Border)
-					}
-					box.Children(func() {
-						ui.Box(c).Absolute().Top(8).Left(8).Size(34, 10).Radius(3).Background(th.Surface)
-						ui.Box(c).Absolute().Top(24).Left(8).Size(56, 4).Radius(2).Background(th.Muted)
-						ui.Box(c).Absolute().Top(32).Left(8).Size(40, 4).Radius(2).Background(th.Dim)
-					})
-					ui.Text(c, strings.Title(name)).FontSize(11.5).TextColor(t.Muted)
-				})
-				if swatch.Clicked() {
-					a.settings.Theme = name
-					a.T = th
-					termTheme = th
-				}
-			}
-		})
-	})
-	a.settingRow(c, "Terminal font", "JetBrains Mono, 14", func() {
-		ui.Text(c, "JetBrains Mono").FontSize(12.5).TextColor(t.Muted)
-	})
-	a.settingRow(c, "Interface font", "Geist, 13", func() {
-		ui.Text(c, "Geist").FontSize(12.5).TextColor(t.Muted)
-	})
-	a.settingRow(c, "Zoom", "How big the whole app is drawn", func() {
-		a.stepper(c, fmt.Sprintf("%.0f%%", a.Zoom*100))
-	})
-}
-
-// settingRow is a label and its control.
-func (a *App) settingRow(c *ui.Context, label, about string, control func()) {
-	t := a.T
-	ui.Row(c).FillWidth().Gap(24).AlignItems(ui.Center).Children(func() {
-		ui.Column(c).Width(220).Gap(2).Children(func() {
-			ui.Text(c, label).FontSize(13).FontWeight(500).TextColor(t.Foreground)
-			ui.Text(c, about).FontSize(11.5).TextColor(t.Dim).Wrap()
-		})
-		ui.Box(c).Grow(1).AlignItems(ui.Start).Children(control)
 	})
 }
 

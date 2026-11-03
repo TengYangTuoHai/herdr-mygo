@@ -79,6 +79,7 @@ func NewApp(s *herdr.Session, theme *Theme) *App {
 		Zoom:           1,
 		SidebarWidth:   268,
 		splitRatio:     0.5,
+		settings:       defaultSettings(),
 		terms:          map[string]*paneTerm{},
 		starting:       map[string]bool{},
 		foldedMachines: map[string]bool{},
@@ -116,8 +117,15 @@ func (a *App) View(c *ui.Context) {
 		a.W, a.H = w, h
 	}
 	a.keys(c)
+	if a.overlay == "settings" && c.Shortcut(ui.Cmd, ui.KeyF) {
+		a.openSettingsSearch()
+	}
 	if a.overlay != "" && c.Shortcut(0, ui.KeyEscape) {
-		a.CloseOverlay()
+		if a.overlay == "settings" && a.settings.SearchOpen {
+			a.closeSettingsSearch()
+		} else {
+			a.CloseOverlay()
+		}
 	}
 	a.collect()
 	ui.Row(c).Fill().Background(t.Canvas).Font(UIFont).AlignItems(ui.Start).Children(func() {
