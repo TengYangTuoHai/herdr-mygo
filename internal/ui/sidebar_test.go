@@ -98,6 +98,42 @@ func TestSidebarStatePersistsBetweenLaunches(t *testing.T) {
 	}
 }
 
+// TestSidebarFoldsPersistBetweenLaunches keeps the folded agents list and
+// the folded machines in the app's own file, and forgets a fold that is
+// unfolded again.
+func TestSidebarFoldsPersistBetweenLaunches(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	first := NewApp(nil, ThemeByName("graphite"))
+	first.LoadSettings()
+	first.toggleAgents()
+	first.toggleMachine("gpu")
+	first.saveSettings()
+
+	second := NewApp(nil, ThemeByName("graphite"))
+	second.LoadSettings()
+	if !second.agentsCollapsed {
+		t.Error("the agents list came back unfolded")
+	}
+	if !second.foldedMachines["gpu"] {
+		t.Errorf("the folded machine came back unfolded: %v", second.foldedMachines)
+	}
+
+	second.toggleAgents()
+	second.toggleMachine("gpu")
+	second.saveSettings()
+
+	third := NewApp(nil, ThemeByName("graphite"))
+	third.LoadSettings()
+	if third.agentsCollapsed {
+		t.Error("the unfolded agents list came back folded")
+	}
+	if third.foldedMachines["gpu"] {
+		t.Errorf("the unfolded machine came back folded: %v", third.foldedMachines)
+	}
+}
+
 // TestSidebarRowsCutLongTextOneLineHigh draws a space's name and its git
 // chip in a row too narrow for them: both end in an ellipsis on one line
 // instead of wrapping into a second, which overflows their 26 px row.

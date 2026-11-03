@@ -39,8 +39,10 @@ type settingsFile struct {
 	BackgroundCheck bool    `json:"background_check"`
 	Telemetry       bool    `json:"telemetry"`
 
-	SidebarOpen  bool    `json:"sidebar_open"`
-	SidebarWidth float32 `json:"sidebar_width"`
+	SidebarOpen     bool            `json:"sidebar_open"`
+	SidebarWidth    float32         `json:"sidebar_width"`
+	AgentsCollapsed bool            `json:"agents_collapsed"`
+	FoldedMachines  map[string]bool `json:"folded_machines"`
 }
 
 // file is the state as the settings file keeps it.
@@ -55,6 +57,7 @@ func (s settingsState) file() settingsFile {
 		UpdateChannel: s.UpdateChannel, AutoInstall: s.AutoInstall,
 		BackgroundCheck: s.BackgroundCheck, Telemetry: s.Telemetry,
 		SidebarOpen: s.SidebarOpen, SidebarWidth: s.SidebarWidth,
+		AgentsCollapsed: s.AgentsCollapsed, FoldedMachines: s.FoldedMachines,
 	}
 }
 
@@ -91,6 +94,8 @@ func readSettings(data []byte, s settingsState) settingsState {
 	take("telemetry", &s.Telemetry)
 	take("sidebar_open", &s.SidebarOpen)
 	take("sidebar_width", &s.SidebarWidth)
+	take("agents_collapsed", &s.AgentsCollapsed)
+	take("folded_machines", &s.FoldedMachines)
 	return s.sanitized()
 }
 
@@ -123,6 +128,9 @@ func (s settingsState) sanitized() settingsState {
 		s.SidebarWidth = 268
 	}
 	s.SidebarWidth = min(max(s.SidebarWidth, sidebarMinWidth), sidebarMaxWidth)
+	if s.FoldedMachines == nil {
+		s.FoldedMachines = map[string]bool{}
+	}
 	return s
 }
 
@@ -170,6 +178,8 @@ func (a *App) LoadSettings() {
 	}
 	a.SidebarOpen = a.settings.SidebarOpen
 	a.SidebarWidth = a.settings.SidebarWidth
+	a.agentsCollapsed = a.settings.AgentsCollapsed
+	a.foldedMachines = a.settings.FoldedMachines
 	a.sidebarShown = a.SidebarWidth
 	if !a.SidebarOpen {
 		a.sidebarShown = 0

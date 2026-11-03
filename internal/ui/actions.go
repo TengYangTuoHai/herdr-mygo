@@ -91,9 +91,13 @@ type settingsState struct {
 	Telemetry bool
 
 	// SidebarOpen and SidebarWidth are the sidebar as it was left: whether
-	// it is shown, and the width it opens at.
-	SidebarOpen  bool
-	SidebarWidth float32
+	// it is shown, and the width it opens at. AgentsCollapsed and
+	// FoldedMachines are the folds as they were left: the agents list
+	// folded to its header, and the machines whose spaces are hidden.
+	SidebarOpen     bool
+	SidebarWidth    float32
+	AgentsCollapsed bool
+	FoldedMachines  map[string]bool
 
 	Search     string
 	SearchOpen bool
@@ -121,6 +125,7 @@ func defaultSettings() settingsState {
 		Telemetry:       true,
 		SidebarOpen:     true,
 		SidebarWidth:    268,
+		FoldedMachines:  map[string]bool{},
 	}
 }
 

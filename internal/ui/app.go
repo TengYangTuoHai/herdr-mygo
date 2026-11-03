@@ -46,7 +46,8 @@ type App struct {
 	sidebarShown float32
 	sidebarDrag  bool
 	// splitRatio is the spaces list's share of the sidebar's two lists;
-	// agentsCollapsed folds the agents list to its header.
+	// agentsCollapsed folds the agents list to its header, as the settings
+	// keep it.
 	splitRatio      float32
 	agentsCollapsed bool
 
@@ -88,7 +89,7 @@ type App struct {
 	commitMessage string
 
 	mach           machineAddState
-	foldedMachines map[string]bool
+	foldedMachines map[string]bool // the machines folded to their header, as the settings keep them
 
 	fsMu   sync.Mutex
 	remote map[string]*remoteDir
