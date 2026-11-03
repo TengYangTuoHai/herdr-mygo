@@ -354,7 +354,7 @@ func (a *App) welcomeOverlay(c *ui.Context) {
 				ui.Box(c).Height(1).FillWidth().Background(t.Border)
 				ui.Row(c).Height(52).FillWidth().AlignItems(ui.Center).Children(func() {
 					ui.Text(c, "Appearance").FontSize(13).TextColor(t.Muted).Width(150)
-					a.settingsSegmented(c, []string{"System", "Light", "Dark"}, &a.settings.Appearance)
+					a.settingsSegmentedOn(c, appearanceNames, &a.settings.Appearance, a.setAppearance)
 				})
 				ui.Row(c).Height(52).FillWidth().AlignItems(ui.Center).Children(func() {
 					ui.Text(c, "Size").FontSize(13).TextColor(t.Muted).Width(150)

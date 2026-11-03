@@ -16,8 +16,6 @@ const TerminalFont = "JetBrains Mono"
 // UIFont is the panels' font.
 const UIFont = "Geist"
 
-var termTheme *Theme
-
 func osGOOS() string { return runtime.GOOS }
 
 // iconPNG reads a bitmap from the app's assets.
@@ -214,9 +212,9 @@ func (a *App) Run(action string) {
 		a.Zoom = 1
 		a.Repaint()
 	case "app.theme":
-		if value != "" {
-			a.T = ThemeByName(value)
-			termTheme = a.T
+		if knownTheme(value) {
+			a.settings.Theme = value
+			a.applyTheme()
 		}
 		a.Repaint()
 	case "app.quit":

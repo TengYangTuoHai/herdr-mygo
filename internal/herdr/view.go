@@ -6,16 +6,21 @@ import (
 	"path/filepath"
 )
 
-// AppHome is the folder Herdr keeps settings, keys and this screen in.
+// AppHome is the folder this window keeps its own files in: settings.json,
+// keys.json and view.json. It is not herdr-app's folder: Herdr's window has
+// settings of its own, and keeps them apart from the original app's.
 func AppHome() string {
-	if h := os.Getenv("HERDR_APP_HOME"); h != "" {
+	if h := os.Getenv("HERDR_MYGO_HOME"); h != "" {
 		return h
+	}
+	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
+		return filepath.Join(dir, "herdr-mygo")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "."
 	}
-	return filepath.Join(home, ".config", "herdr-app")
+	return filepath.Join(home, ".config", "herdr-mygo")
 }
 
 // viewFile is what this screen keeps: the shown space, each space's tab,

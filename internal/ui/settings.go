@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"herdr-mygo/internal/herdr"
@@ -99,7 +100,7 @@ func (a *App) settingsEntries() []settingsEntry {
 	}
 	return []settingsEntry{
 		entry("look", "Appearance", "System, or always light or dark.", pick(appearanceNames, s.Appearance)),
-		entry("look", "Theme", "Colors for the chrome and every terminal.", strings.Title(s.Theme)),
+		entry("look", "Theme", "Colors for the chrome and every terminal.", strings.Title(a.currentThemeName())),
 		entry("look", "Accent", "Focus rings, selections and key hints.", strings.ToUpper(s.Accent)),
 		entry("look", "Interface font", "The panels’ typeface and size.", fmt.Sprintf("%s %d", s.InterfaceFont, s.InterfaceSize)),
 		entry("look", "Terminal font", "Used by every pane, on every machine.", fmt.Sprintf("%s %d", s.TerminalFont, s.TerminalSize)),
@@ -586,6 +587,12 @@ func (a *App) settingsToggle(c *ui.Context, on *bool) {
 
 // settingsSegmented is a row of mutually exclusive labels.
 func (a *App) settingsSegmented(c *ui.Context, labels []string, value *int) {
+	a.settingsSegmentedOn(c, labels, value, nil)
+}
+
+// settingsSegmentedOn is settingsSegmented that runs onChange with the
+// index picked, for a setting that applies at once.
+func (a *App) settingsSegmentedOn(c *ui.Context, labels []string, value *int, onChange func(int)) {
 	t := a.T
 	ui.Row(c).Padding(2).Radius(8).Gap(2).Background(Alpha(t.Foreground, 0.055)).
 		AlignItems(ui.Center).Children(func() {
@@ -604,10 +611,51 @@ func (a *App) settingsSegmented(c *ui.Context, labels []string, value *int) {
 			})
 			if item.Clicked() {
 				*value = i
+				if onChange != nil {
+					onChange(i)
+				}
 				a.Repaint()
 			}
 		}
 	})
+}
+
+// themeSource is the mygo appearance an Appearance setting asks for, so
+// the window's own chrome follows it too.
+func themeSource(appearance int) mygo.ThemeSource {
+	switch appearance {
+	case AppearanceLight:
+		return mygo.ThemeLight
+	case AppearanceDark:
+		return mygo.ThemeDark
+	}
+	return mygo.ThemeSystem
+}
+
+// StartAppearance gives the window the appearance the settings keep, and
+// the theme that matches, before it first shows.
+func (a *App) StartAppearance() {
+	mygo.Theme.SetSource(themeSource(a.settings.Appearance))
+	if a.settings.Appearance == AppearanceSystem {
+		// The source is the system's: read it now, as the desktop may
+		// be the other way around from when the settings were written.
+		a.SetSystemAppearance(mygo.Theme.IsDark())
+	}
+	a.applyTheme()
+}
+
+// setAppearance makes the window follow the desktop, or always light or
+// dark, and applies the theme that matches.
+func (a *App) setAppearance(n int) {
+	a.settings.Appearance = n
+	mygo.Theme.SetSource(themeSource(n))
+	if n == AppearanceSystem {
+		// Back to the system's: read it again, as it may have changed
+		// while the window forced light or dark.
+		a.systemKnown = false
+		a.SetSystemAppearance(mygo.Theme.IsDark())
+	}
+	a.applyTheme()
 }
 
 // stepper draws − 100% +.
@@ -708,8 +756,7 @@ func (a *App) settingsDots(c *ui.Context) {
 			})
 			if wrap.Clicked() {
 				a.settings.Accent = hex
-				a.T.Accent = ui.Hex(hex)
-				a.Repaint()
+				a.applyTheme()
 			}
 		}
 		more := ui.Box(c).Size(24, 24).Radius(12).Center().Border(1, t.Input).
@@ -725,7 +772,7 @@ func (a *App) settingsLook(c *ui.Context) {
 
 	a.settingsCard(c, func() {
 		a.settingsRow(c, "Appearance", "Follow the system, or always use light or dark.", func() {
-			a.settingsSegmented(c, appearanceNames, &a.settings.Appearance)
+			a.settingsSegmentedOn(c, appearanceNames, &a.settings.Appearance, a.setAppearance)
 		})
 		a.settingsDivider(c)
 		a.settingsRow(c, "Accent", "Focus rings, selections and key hints.", func() {
@@ -752,7 +799,7 @@ func (a *App) settingsLook(c *ui.Context) {
 
 	ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 		a.icon(c, "file", 12, t.Dim)
-		ui.Text(c, "~/.config/herdr-app/settings.json").Font(TerminalFont).FontSize(10.5).
+		ui.Text(c, a.SettingsPath()).Font(TerminalFont).FontSize(10.5).
 			TextColor(t.Muted)
 		ui.Text(c, "· saved as you go").FontSize(11).TextColor(t.Dim)
 	})
@@ -793,7 +840,7 @@ func (a *App) settingsThemeCard(c *ui.Context) {
 				a.settingsLink(c, "Edit colors…", nil)
 			})
 			ui.Row(c).FillWidth().Gap(12).Children(func() {
-				for _, name := range []string{"graphite", "ink", "moss", "paper"} {
+				for _, name := range themes {
 					a.settingsThemeTile(c, name)
 				}
 			})
@@ -805,7 +852,7 @@ func (a *App) settingsThemeCard(c *ui.Context) {
 func (a *App) settingsThemeTile(c *ui.Context, name string) {
 	t := a.T
 	th := ThemeByName(name)
-	on := a.settings.Theme == name
+	on := a.currentThemeName() == name
 	col := ui.Column(c).Grow(1).Gap(6).Cursor(ui.CursorPointer)
 	col.Children(func() {
 		border := t.Border
@@ -849,9 +896,7 @@ func (a *App) settingsThemeTile(c *ui.Context, name string) {
 	})
 	if col.Clicked() {
 		a.settings.Theme = name
-		a.T = th
-		termTheme = th
-		a.Repaint()
+		a.applyTheme()
 	}
 }
 

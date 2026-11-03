@@ -72,6 +72,19 @@ var paper = palette{
 	},
 }
 
+// themes are the themes the settings offer, in the order they show.
+var themes = []string{"graphite", "ink", "moss", "paper"}
+
+// knownTheme reports whether name is one of them.
+func knownTheme(name string) bool {
+	for _, t := range themes {
+		if t == name {
+			return true
+		}
+	}
+	return false
+}
+
 // ThemeByName resolves a built-in theme, graphite when the name is unknown.
 func ThemeByName(name string) *Theme {
 	var p palette
@@ -86,6 +99,35 @@ func ThemeByName(name string) *Theme {
 		p = graphite
 	}
 	return resolve(p)
+}
+
+// Appearance is how the window picks light or dark: from the desktop, or
+// always one of them.
+const (
+	AppearanceSystem = iota
+	AppearanceLight
+	AppearanceDark
+)
+
+// ThemeFor resolves the theme the window draws with, and its name: the one
+// picked when its own light or dark fits the appearance, else paper in the
+// light and graphite in the dark. systemDark is the desktop's appearance,
+// read where the appearance asks for the system's.
+func ThemeFor(name string, appearance int, systemDark bool) (string, *Theme) {
+	dark := systemDark
+	switch appearance {
+	case AppearanceLight:
+		dark = false
+	case AppearanceDark:
+		dark = true
+	}
+	if picked := ThemeByName(name); picked.Dark == dark {
+		return name, picked
+	}
+	if dark {
+		return "graphite", ThemeByName("graphite")
+	}
+	return "paper", ThemeByName("paper")
 }
 
 func isLight(c uint32) bool {

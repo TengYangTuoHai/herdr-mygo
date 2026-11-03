@@ -19,6 +19,7 @@ func main() {
 	myui.RegisterFonts()
 	theme := myui.ThemeByName("graphite")
 	app := myui.NewApp(nil, theme)
+	app.LoadSettings()
 	mygo.App.WhenReady(func() {
 		myui.InstallMenu()
 		point := mygo.Point{X: 12, Y: 16}
@@ -29,8 +30,18 @@ func main() {
 			StateKey:             "main",
 			TitleBarStyle:        mygo.TitleBarHidden,
 			TrafficLightPosition: &point,
-			BackgroundColor:      "#131518",
+			BackgroundColor:      "light-dark(#f6f7f9, #131518)",
 			Content:              ui.View(app.View),
+		})
+		// Start in the desktop's appearance, and follow it while the
+		// appearance asks for the system's.
+		app.SetSystemAppearance(mygo.Theme.IsDark())
+		app.StartAppearance()
+		mygo.Theme.OnUpdated(func() {
+			if mygo.Theme.Source() != mygo.ThemeSystem {
+				return // the window forces light or dark
+			}
+			app.SetSystemAppearance(mygo.Theme.IsDark())
 		})
 		session, err := herdr.Connect("", app.Repaint)
 		if err != nil {

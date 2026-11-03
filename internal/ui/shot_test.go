@@ -36,8 +36,8 @@ func TestShot(t *testing.T) {
 		app.settings.Search = search
 	}
 	if name := os.Getenv("SHOT_THEME"); name != "" {
-		app.T = ThemeByName(name)
-		termTheme = app.T
+		app.settings.Theme = name
+		app.applyTheme()
 	}
 	if os.Getenv("SHOT_SOUND_OFF") != "" {
 		app.settings.AlertSound = false

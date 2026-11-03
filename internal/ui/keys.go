@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"herdr-mygo/internal/assets"
+	"herdr-mygo/internal/herdr"
 )
 
 // Binding is one key in keys.json: its section, its key and what it does.
@@ -20,17 +21,9 @@ type Binding struct {
 	Action  string `json:"action"`
 }
 
-// AppHome is the folder Herdr keeps its files in.
-func AppHome() string {
-	if h := os.Getenv("HERDR_APP_HOME"); h != "" {
-		return h
-	}
-	dir, err := os.UserHomeDir()
-	if err != nil {
-		return "."
-	}
-	return filepath.Join(dir, ".config", "herdr-app")
-}
+// AppHome is the folder the app keeps its own files in: settings.json,
+// keys.json and view.json, never herdr-app's.
+func AppHome() string { return herdr.AppHome() }
 
 var (
 	bindings     []Binding

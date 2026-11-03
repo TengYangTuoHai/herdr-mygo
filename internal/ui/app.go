@@ -33,6 +33,19 @@ type App struct {
 	splitRatio      float32
 	agentsCollapsed bool
 
+	// themeName is the theme drawn now: the appearance may pick one over
+	// the theme chosen. systemDark is the desktop's appearance, and
+	// systemKnown tells whether it was read yet.
+	themeName   string
+	systemDark  bool
+	systemKnown bool
+
+	// settingsPath is the file the settings are kept in, empty when the
+	// window was made without one (a test, a preview), and savedSettings
+	// the text written last.
+	settingsPath  string
+	savedSettings string
+
 	mu       sync.Mutex
 	terms    map[string]*paneTerm
 	starting map[string]bool
@@ -76,6 +89,7 @@ type paneTerm struct {
 func NewApp(s *herdr.Session, theme *Theme) *App {
 	return &App{
 		S: s, T: theme,
+		themeName:      "graphite",
 		Zoom:           1,
 		SidebarWidth:   268,
 		splitRatio:     0.5,
@@ -135,6 +149,8 @@ func (a *App) View(c *ui.Context) {
 	})
 	a.resizeHandle(c)
 	a.overlays(c)
+	// A setting this frame changed goes to the file it is kept in.
+	a.saveSettings()
 }
 
 // sidebar draws the brand row, the spaces and agents lists, and the footer.
@@ -181,10 +197,13 @@ func (a *App) splitHandle(c *ui.Context, spacesHeight, listHeight float32) {
 	ui.Overlay(c, func() {
 		handle := ui.Box(c).Absolute().Top(46 + spacesHeight - 3).Left(0).
 			Width(a.SidebarWidth).Height(6).Cursor(ui.CursorResizeNS)
-		if handle.Hovered() {
+		// Dragged reports the pointer's horizontal travel first: the divider
+		// follows its vertical one, and stays lit while the press lasts.
+		_, dy, held := handle.Dragged()
+		if held || handle.Hovered() {
 			handle.Background(Alpha(t.Accent, 0.35))
 		}
-		if dy, _, ok := handle.Dragged(); ok && listHeight > 0 {
+		if held && listHeight > 0 {
 			minSpaces, maxSpaces := splitLimits(listHeight)
 			next := spacesHeight + dy
 			if next < minSpaces {
@@ -853,6 +872,66 @@ func (a *App) collect() {
 	for _, entry := range gone {
 		_ = entry.term.Close()
 	}
+}
+
+// SetSystemAppearance follows the desktop's light or dark appearance, and
+// re-themes the window when the appearance asks for the system's. Main
+// thread only.
+func (a *App) SetSystemAppearance(dark bool) {
+	if a.systemKnown && a.systemDark == dark {
+		return
+	}
+	a.systemDark, a.systemKnown = dark, true
+	if a.settings.Appearance == AppearanceSystem {
+		a.applyTheme()
+	}
+}
+
+// applyTheme resolves the theme the window draws with from the appearance
+// and the theme picked, and gives it to the terminals.
+func (a *App) applyTheme() {
+	name, th := ThemeFor(a.settings.Theme, a.settings.Appearance, a.systemDark)
+	if validHex(a.settings.Accent) {
+		th.Accent = ui.Hex(a.settings.Accent)
+	}
+	a.themeName, a.T = name, th
+	a.applyTerminalTheme(th)
+	a.Repaint()
+}
+
+// currentThemeName is the theme drawn now: the one picked, unless the
+// appearance picked another for this light or dark.
+func (a *App) currentThemeName() string {
+	if a.themeName != "" {
+		return a.themeName
+	}
+	return a.settings.Theme
+}
+
+// applyTerminalTheme repaints every open terminal with th, and tells the
+// core the colors programs ask about.
+func (a *App) applyTerminalTheme(th *Theme) {
+	tt := terminalTheme(th)
+	a.mu.Lock()
+	views := make([]*paneTerm, 0, len(a.terms))
+	for _, entry := range a.terms {
+		views = append(views, entry)
+	}
+	a.mu.Unlock()
+	for _, entry := range views {
+		entry.term.SetTheme(tt, nil)
+		if entry.conn != nil {
+			_ = entry.conn.UseTheme(tt)
+		}
+	}
+	if a.Win != nil {
+		_ = a.Win.SetBackgroundColor(colorHex(th.Background))
+	}
+}
+
+// colorHex writes a color as the #rrggbb a window option takes.
+func colorHex(c ui.Color) string {
+	return fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B)
 }
 
 // terminalTheme is the terminal's colors from the window's theme.

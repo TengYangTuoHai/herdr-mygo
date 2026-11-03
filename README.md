@@ -52,8 +52,9 @@ spaces list, the agents list and the footer; a 42 px tab bar; pane cards
 Herdr's `graphite` theme, resolved with the same formula Herdr uses
 (`settings.rs`), and terminals use the same palette, font and padding.
 
-Keys are read from `~/.config/herdr-app/keys.json` (or the shipped
-`keys.macos.json` / `keys.json`), so `cmd-shift-p` opens the palette,
+Keys are read from `~/.config/herdr-mygo/keys.json` (or `$XDG_CONFIG_HOME`,
+or `$HERDR_MYGO_HOME`, else the shipped `keys.macos.json` / `keys.json`), so
+`cmd-shift-p` opens the palette,
 `cmd-d` splits, `cmd-1`… select tabs, and so on. Terminals get every other
 key, through Ghostty's key protocol handling in MyGo's terminal plugin.
 
@@ -87,7 +88,12 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
   tabs and panes, prompt dialogs, toasts
 - Settings for Look, Terminal, Machines, Alerts, Updates and Privacy, with
   search (⌘F), a theme picker, live controls and the Paper theme; welcome and
-  the keys list
+  the keys list. Appearance follows the desktop, or stays light or dark, and
+  the theme — chrome and every open terminal — changes with it: dark themes
+  (Graphite, Ink, Moss) and Paper for the light
+- The app keeps its own files, apart from herdr-app's, under
+  `~/.config/herdr-mygo`: `settings.json` written as a setting changes, the
+  keys, and the screen's view
 - Files tree with file preview; Changes with git status, diff and commit
 - Sidebar drag to resize, spaces and machine groups dragged into order,
   window drag on the brand and tab bars, traffic lights where Herdr puts them
@@ -108,9 +114,9 @@ are JavaScript mods. This port draws Herdr's shipped interface in Go, so:
   seconds rather than on every change.
 - No session settling, update checks, telemetry, or `herdr-app do` control
   socket. Previews (Files, Changes) are read-only except the commit box.
-- Zoom and settings are not written back to `settings.json` yet, and the
-  Alerts, Updates and Privacy controls are presentational: the app has no
-  sound, update check or telemetry yet.
+- Zoom is not written back to `settings.json` yet, and the Alerts, Updates
+  and Privacy controls are presentational: the app has no sound, update
+  check or telemetry yet.
 
 ## How it is checked
 
