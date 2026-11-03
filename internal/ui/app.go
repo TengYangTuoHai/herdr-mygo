@@ -23,6 +23,11 @@ const (
 	sidebarMaxWidth float32 = 480
 	// sidebarFooterHeight is the height of the sidebar's footer.
 	sidebarFooterHeight float32 = 69
+	// paneGap is the room between two panes, where their divider sits;
+	// paneMinWidth and paneMinHeight are the smallest a pane is dragged to.
+	paneGap       float32 = 8
+	paneMinWidth  float32 = 80
+	paneMinHeight float32 = 60
 	// sidebarDuration is how long the sidebar takes to open or close.
 	sidebarDuration = 200 * time.Millisecond
 )
@@ -51,6 +56,11 @@ type App struct {
 	// keep it.
 	splitRatio      float32
 	agentsCollapsed bool
+	// paneDrag tells that the pointer holds a divider between panes this
+	// frame, paneDragged that it held one the frame before, so that letting
+	// go writes the sizes the drag left to the document.
+	paneDrag    bool
+	paneDragged bool
 
 	// themeName is the theme drawn now: the appearance may pick one over
 	// the theme chosen. systemDark is the desktop's appearance, and
@@ -166,6 +176,7 @@ func (a *App) View(c *ui.Context) {
 	// The edge is read before the sidebar is built, so that a drag follows
 	// the pointer in the frame it moves.
 	a.resizeHandle(c)
+	a.paneDragged, a.paneDrag = a.paneDrag, false
 	ui.Row(c).Fill().Background(t.Canvas).Font(UIFont).AlignItems(ui.Start).Children(func() {
 		a.sidebar(c)
 		if a.sidebarShown > 0 {
@@ -174,6 +185,10 @@ func (a *App) View(c *ui.Context) {
 		a.work(c)
 	})
 	a.overlays(c)
+	if a.paneDragged && !a.paneDrag {
+		// The pointer let a divider go: its panes keep the sizes it left.
+		a.S.WriteDoc()
+	}
 	// A setting this frame changed goes to the file it is kept in.
 	a.saveSettings()
 }
@@ -622,12 +637,12 @@ func (a *App) paneArea(c *ui.Context) {
 	for _, p := range panes {
 		byPane[p.Pane] = p
 	}
-	a.renderNode(c, tree, byPane, true, "row")
+	a.renderNode(c, tab.ID, tree, byPane, true, "row")
 }
 
 // renderNode draws a row, a column, or a pane. axis is the direction of the
 // parent: a row's children grow across, a column's children grow down.
-func (a *App) renderNode(c *ui.Context, n *herdr.Node, panes map[string]herdr.PaneInfo, root bool, axis string) {
+func (a *App) renderNode(c *ui.Context, tab string, n *herdr.Node, panes map[string]herdr.PaneInfo, root bool, axis string) {
 	if n == nil {
 		return
 	}
@@ -643,10 +658,15 @@ func (a *App) renderNode(c *ui.Context, n *herdr.Node, panes map[string]herdr.Pa
 		} else {
 			box = a.applySize(box, n, axis)
 		}
-		box = box.Gap(8)
+		// The room between two children is their divider: a drag there gives
+		// one pane more and the other less.
+		across := n.Type == "row"
 		box.Children(func() {
-			for _, child := range n.Children {
-				a.renderNode(c, child, panes, false, n.Type)
+			for i, child := range n.Children {
+				if i > 0 {
+					a.paneDivider(c, tab, n, box, i, across)
+				}
+				a.renderNode(c, tab, child, panes, false, n.Type)
 			}
 		})
 		return
@@ -662,6 +682,160 @@ func (a *App) renderNode(c *ui.Context, n *herdr.Node, panes map[string]herdr.Pa
 		box = a.applySize(box, n, axis)
 	}
 	box.Children(func() { a.paneCard(c, info, 10, 0) })
+}
+
+// paneDivider is the line between the children at and at-1 of a split: the
+// pointer drags it along the split's axis, and it lights up while it is
+// hovered or held, as the sidebar's divider does.
+func (a *App) paneDivider(c *ui.Context, tab string, n *herdr.Node, box ui.Element, at int, across bool) {
+	t := a.T
+	var handle ui.Element
+	if across {
+		handle = ui.Box(c).Width(paneGap).FillHeight().Shrink(0).Cursor(ui.CursorResizeEW)
+	} else {
+		handle = ui.Box(c).Height(paneGap).FillWidth().Shrink(0).Cursor(ui.CursorResizeNS)
+	}
+	dx, dy, held := handle.Dragged()
+	if held || handle.Hovered() {
+		handle.Background(Alpha(t.Accent, 0.35))
+	}
+	if !held || a.S == nil {
+		return
+	}
+	delta := dx
+	min := paneMinWidth
+	if !across {
+		delta, min = dy, paneMinHeight
+	}
+	if delta == 0 {
+		return
+	}
+	weights, ok := paneWeights(paneSpans(n, box, across), at-1, delta, min)
+	if !ok {
+		return
+	}
+	a.paneDrag = true
+	a.S.SetWeights(tab, weights)
+}
+
+// paneSpan is one child of a split as a divider drag reads it: the weight it
+// is sized by, zero when it is fixed to a px size, and the DIPs that size
+// gave it in the frame before.
+type paneSpan struct {
+	ID     string
+	Weight float64
+	Span   float32
+}
+
+// paneSpans reads the children of a split as its last frame drew them, along
+// the axis its dividers move on: the room the box had, the gaps between the
+// children aside, shared as applySize shares it.
+func paneSpans(n *herdr.Node, box ui.Element, across bool) []paneSpan {
+	r := box.Bounds()
+	extent := r.W
+	if !across {
+		extent = r.H
+	}
+	room := extent - float32(len(n.Children)-1)*paneGap
+	var fixed float32
+	var weightSum float64
+	for _, child := range n.Children {
+		fixed += fixedSpan(child)
+		weightSum += nodeWeight(child)
+	}
+	pool := room - fixed
+	out := make([]paneSpan, len(n.Children))
+	for i, child := range n.Children {
+		w := nodeWeight(child)
+		span := fixedSpan(child)
+		if w > 0 && weightSum > 0 {
+			span = pool * float32(w/weightSum)
+		}
+		out[i] = paneSpan{ID: child.ID, Weight: w, Span: span}
+	}
+	return out
+}
+
+// fixedSpan is a node's px size, 0 when it grows by a weight.
+func fixedSpan(n *herdr.Node) float32 {
+	if n.Size != nil && n.Size.PX != nil && nodeWeight(n) == 0 {
+		return float32(*n.Size.PX)
+	}
+	return 0
+}
+
+// nodeWeight is the weight applySize grows a node by: its own, else one for a
+// node without a size, and none for one fixed to px.
+func nodeWeight(n *herdr.Node) float64 {
+	if n.Size != nil {
+		if n.Size.Weight != nil && *n.Size.Weight > 0 {
+			return *n.Size.Weight
+		}
+		if n.Size.PX != nil && *n.Size.PX > 0 {
+			return 0
+		}
+	}
+	return 1
+}
+
+// paneWeights is where a drag of the divider at at leaves the two children
+// either side of it: the DIPs it travelled give the first more room and the
+// second less, and neither goes under min. A child fixed to a px size takes
+// the weight that keeps the room it has, so both stay in proportion as the
+// window changes. ok is false when there is no room to share out.
+func paneWeights(children []paneSpan, at int, delta, min float32) (map[string]float64, bool) {
+	if at < 0 || at+1 >= len(children) {
+		return nil, false
+	}
+	first, second := children[at], children[at+1]
+	var inner, rest float32
+	var restWeight float64
+	for i, ch := range children {
+		inner += ch.Span
+		if i != at && i != at+1 && ch.Weight > 0 {
+			rest += ch.Span
+			restWeight += ch.Weight
+		}
+	}
+	if inner <= 0 {
+		return nil, false
+	}
+	// A fixed child takes the weight its DIPs are worth among the weights it
+	// joins, which is what keeps the room it has.
+	convert := func(ch paneSpan) float64 {
+		if ch.Weight > 0 {
+			return ch.Weight
+		}
+		if restWeight > 0 && rest > 0 {
+			return float64(ch.Span) * restWeight / float64(rest)
+		}
+		return float64(ch.Span)
+	}
+	wf, ws := convert(first), convert(second)
+	// unit is what a weight is worth in DIPs: from the pair when both grow,
+	// else from the weights the fixed one joins, else one DIP a weight.
+	unit := 1.0
+	if first.Weight > 0 && second.Weight > 0 && first.Span+second.Span > 0 {
+		unit = float64(first.Span+second.Span) / (first.Weight + second.Weight)
+	} else if restWeight > 0 && rest > 0 {
+		unit = float64(rest) / restWeight
+	}
+	dw := float64(delta) / unit
+	sum := wf + ws
+	low := float64(min) / unit
+	if low*2 > sum {
+		low = sum / 2
+	}
+	// A pane that reaches its smallest stops there, and the other one takes
+	// the rest: the pair keeps the room it had.
+	nf, ns := wf+dw, ws-dw
+	if nf < low {
+		nf, ns = low, sum-low
+	}
+	if ns < low {
+		ns, nf = low, sum-low
+	}
+	return map[string]float64{first.ID: nf, second.ID: ns}, true
 }
 
 // applySize gives a node its share along its parent: px, a weight, or equal.

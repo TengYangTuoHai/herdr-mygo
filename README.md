@@ -107,7 +107,8 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
   opens again at the width it had; the width and whether it is open are
   kept in `settings.json`
 - Sidebar drag to resize, spaces and machine groups dragged into order,
-  window drag on the brand and tab bars, traffic lights where Herdr puts them
+  panes resized by dragging the divider between them, window drag on the
+  brand and tab bars, traffic lights where Herdr puts them
 
 ## What is not here yet
 
@@ -116,9 +117,9 @@ are JavaScript mods. This port draws Herdr's shipped interface in Go, so:
 
 - No `layouts/*.json` or `mods/*` execution: `terminals` and `win98` layouts,
   and user mods, do not load. Their look is fixed to `main`.
-- No worktrees, terminal peek or floating blocks; panes can be split and
-  focused but not dragged or resized by their divider; tabs cannot be
-  drag-reordered yet.
+- No worktrees, terminal peek or floating blocks; panes can be split,
+  focused and resized by their divider, but not dragged to move; tabs
+  cannot be drag-reordered yet.
 - Machines are added over ssh only (no `--via` commands or temporary
   machines); Files reads remote folders one level at a time through
   `machine.exec`, so it has no git-ignore dimming and refreshes every few

@@ -612,6 +612,33 @@ func (s *Session) Swap(direction string) {
 	s.changed()
 }
 
+// SetWeights gives nodes of a tab new weights, as dragging the divider
+// between two panes does. It changes the model only: the document keeps the
+// sizes a drag leaves when the window writes it, on letting go.
+func (s *Session) SetWeights(tabID string, weights map[string]float64) bool {
+	found := false
+	s.mu.Lock()
+	for _, sp := range s.spaces {
+		for _, t := range sp.Tabs {
+			if t.ID != tabID {
+				continue
+			}
+			found = true
+			for id, w := range weights {
+				if n := t.Root.find(id); n != nil {
+					weight := w
+					n.Size = &Size{Weight: &weight}
+				}
+			}
+		}
+	}
+	s.mu.Unlock()
+	if found {
+		s.changed()
+	}
+	return found
+}
+
 // OpenTerminal starts a program in the shown space: a new tab, or a split.
 func (s *Session) OpenTerminal(argv []string, folder, place string) {
 	sp, _ := s.Active()
