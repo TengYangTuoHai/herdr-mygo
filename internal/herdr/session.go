@@ -313,24 +313,50 @@ func (s *Session) applySnapshot(raw json.RawMessage) {
 	}
 }
 
+func (s *Session) refreshTerminals() {
+	if s.Core == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	raw, err := s.Core.Call(ctx, "terminal.list", map[string]any{"all": true})
+	if err != nil {
+		return
+	}
+	s.applySnapshot(raw)
+	s.changed()
+}
+
 // follow reads the event stream until the core goes.
 func (s *Session) follow() {
 	for {
 		ch, err := s.Core.Stream(s.subCh)
 		if err != nil {
-			return
+			if !s.resubscribe() {
+				return
+			}
+			continue
 		}
 		buf := []byte{}
 		for {
 			item, ok := <-ch
 			if !ok {
-				return
+				if !s.resubscribe() {
+					return
+				}
+				break
 			}
 			if item.Kind == core.FrameClose {
 				if item.Data == nil {
 					return // the connection to the core went
 				}
-				return
+				if len(buf) > 0 {
+					s.handleLine(buf)
+				}
+				if !s.resubscribe() {
+					return
+				}
+				break
 			}
 			buf = append(buf, item.Data...)
 			for {
@@ -344,6 +370,19 @@ func (s *Session) follow() {
 			}
 		}
 	}
+}
+
+func (s *Session) resubscribe() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	channel, snapshot, err := s.Core.Subscribe(ctx)
+	if err != nil {
+		return false
+	}
+	s.subCh = channel
+	s.applySnapshot(snapshot)
+	s.changed()
+	return true
 }
 
 func indexByte(b []byte, c byte) int {
@@ -738,7 +777,7 @@ func (s *Session) pollForever() {
 			if s.Core == nil {
 				return
 			}
-			s.changed()
+			s.refreshTerminals()
 		case <-machines.C:
 			if s.Core == nil {
 				return

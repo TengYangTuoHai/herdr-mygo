@@ -72,6 +72,26 @@ func sessionWithOnePane(record string) *Session {
 	}
 }
 
+func TestAgentsListRestoresSeenDoneFromTerminalLabel(t *testing.T) {
+	s := sessionWithOnePane(`{"address":"t10","state":"live","labels":{"herdr.seen":"3"},"status":{"state":"done"},"turn":3}`)
+	s.mu.Lock()
+	list := s.agentsLocked()
+	s.mu.Unlock()
+	if len(list) != 1 || list[0].Status != "idle" {
+		t.Fatalf("restored seen agent: %+v, want one idle agent", list)
+	}
+}
+
+func TestAgentsListDoesNotRestoreSeenFromEarlierTurn(t *testing.T) {
+	s := sessionWithOnePane(`{"address":"t10","state":"live","labels":{"herdr.seen":"2"},"status":{"state":"done"},"turn":3}`)
+	s.mu.Lock()
+	list := s.agentsLocked()
+	s.mu.Unlock()
+	if len(list) != 1 || list[0].Status != "done" {
+		t.Fatalf("new turn status: %+v, want one done agent", list)
+	}
+}
+
 func TestAgentsListShowsAReportedPane(t *testing.T) {
 	s := sessionWithOnePane(reportedRecord)
 	s.mu.Lock()
@@ -160,6 +180,29 @@ func TestStatusEventTakesTheObject(t *testing.T) {
 
 // A terminal that reports a word the app does not know still shows, as the
 // program's own word.
+func TestFinishedTerminalIsRemovedFromAgentsAfterSnapshot(t *testing.T) {
+	s := sessionWithOnePane(reportedRecord)
+	s.activeTab = map[string]string{"sp1": "tb1"}
+	s.applySnapshot(json.RawMessage(`{"terminals":[{"address":"t10","state":"finished","status":{"state":"working"}}]}`))
+	s.mu.Lock()
+	list := s.agentsLocked()
+	s.mu.Unlock()
+	if len(list) != 0 {
+		t.Fatalf("finished terminal still listed as agent: %+v", list)
+	}
+}
+
+func TestHandleLineAppliesStatusEvent(t *testing.T) {
+	s := sessionWithOnePane(reportedRecord)
+	s.activeTab = map[string]string{"sp1": "tb1"}
+	s.git = map[string]gitInfo{}
+	s.gitBusy = map[string]bool{}
+	s.handleLine([]byte(`{"method":"event","params":{"type":"status","terminal":"t10","data":{"status":{"state":"done"}}}}`))
+	if got := s.terminals["t10"].Word(); got != "done" {
+		t.Fatalf("status after final event: %q", got)
+	}
+}
+
 func TestAgentsListKeepsProgramWords(t *testing.T) {
 	s := sessionWithOnePane(`{"address":"t10","state":"live","labels":{},"status":{"state":"thinking"},"turn":1}`)
 	s.mu.Lock()
@@ -197,24 +240,5 @@ func TestAgentsListCarriesTheMachineOfARemoteSpace(t *testing.T) {
 		if ag.Machine != want {
 			t.Fatalf("agent %s of %q: machine %q, want %q", ag.Pane, ag.Space, ag.Machine, want)
 		}
-	}
-}
-func TestAgentsListRestoresSeenDoneFromTerminalLabel(t *testing.T) {
-	s := sessionWithOnePane(`{"address":"t10","state":"live","labels":{"herdr.seen":"3"},"status":{"state":"done"},"turn":3}`)
-	s.mu.Lock()
-	list := s.agentsLocked()
-	s.mu.Unlock()
-	if len(list) != 1 || list[0].Status != "idle" {
-		t.Fatalf("restored seen agent: %+v, want one idle agent", list)
-	}
-}
-
-func TestAgentsListDoesNotRestoreSeenFromEarlierTurn(t *testing.T) {
-	s := sessionWithOnePane(`{"address":"t10","state":"live","labels":{"herdr.seen":"2"},"status":{"state":"done"},"turn":3}`)
-	s.mu.Lock()
-	list := s.agentsLocked()
-	s.mu.Unlock()
-	if len(list) != 1 || list[0].Status != "done" {
-		t.Fatalf("new turn status: %+v, want one done agent", list)
 	}
 }
