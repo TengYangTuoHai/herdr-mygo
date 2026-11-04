@@ -146,7 +146,10 @@ func (a *App) peekOverlay(c *ui.Context) {
 	// on which the bar and the view under it both sit, as a pane's header and
 	// its terminal do on the pane's. A band of another colour filled inside the
 	// radius would show through the corners' edge.
-	panel := a.card(c, width, height).Background(t.Background).
+	// A peek repaints with the terminal on every scroll frame. Its border
+	// separates it from the tab without repainting a dialog's wide shadow.
+	panel := ui.Column(c).Width(width).Height(height).Radius(12).
+		Background(t.Background).Border(1, t.Border).Clip().
 		Absolute().Top((a.H - height) / 2).Left((a.W - width) / 2)
 	panel.Children(func() {
 		a.peekBar(c, st)
