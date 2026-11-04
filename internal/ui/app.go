@@ -93,6 +93,7 @@ type App struct {
 	palette PaletteState
 	notes   []Toast
 
+	closing   closeState
 	prompt    PromptState
 	settings  settingsState
 	picker    pickerState
@@ -575,7 +576,7 @@ func (a *App) tab(c *ui.Context, tab *herdr.Tab, active bool) {
 		a.openMenuAt(b.X+x, b.Y+y, []MenuItem{
 			{Label: "Rename", Icon: "square-pen", Do: func() { a.Prompt("Rename tab", "Leave empty for its number", tab.Name, "tab.rename", id) }},
 			{Label: "New tab", Icon: "plus", Do: func() { a.newTab() }},
-			{Label: "Close", Icon: "close", Do: func() { a.S.CloseTab(id) }},
+			{Label: "Close", Icon: "close", Do: func() { a.requestClose("tab.close", id) }},
 		})
 		_ = spaceID
 	}
@@ -927,7 +928,7 @@ func (a *App) paneHeader(c *ui.Context, p herdr.PaneInfo) {
 			} else {
 				a.paneButton(c, "zoom", func() { a.S.ZoomPane(p.Pane) })
 			}
-			a.paneButton(c, "close", func() { a.S.ClosePane(p.Pane) })
+			a.paneButton(c, "close", func() { a.requestClose("pane.close", p.Pane) })
 		}
 	})
 	if row.Clicked() && !hovered {
@@ -945,7 +946,7 @@ func (a *App) paneHeader(c *ui.Context, p herdr.PaneInfo) {
 			{Label: "Split right", Icon: "split-right", Do: func() { a.splitPane(pane.Pane, "right") }},
 			{Label: "Split down", Icon: "split-down", Do: func() { a.splitPane(pane.Pane, "down") }},
 			{Label: "Zoom", Icon: "zoom", Do: func() { a.S.ZoomPane(pane.Pane) }},
-			{Label: "Close pane", Icon: "close", Do: func() { a.S.ClosePane(pane.Pane) }},
+			{Label: "Close pane", Icon: "close", Do: func() { a.requestClose("pane.close", pane.Pane) }},
 		})
 	}
 }
@@ -1012,7 +1013,7 @@ func (a *App) terminalView(c *ui.Context, p herdr.PaneInfo) {
 			{Label: "Split right", Icon: "split-right", Do: func() { a.splitPane(pane.Pane, "right") }},
 			{Label: "Split down", Icon: "split-down", Do: func() { a.splitPane(pane.Pane, "down") }},
 			{Label: "Zoom", Icon: "zoom", Do: func() { a.S.ZoomPane(pane.Pane) }},
-			{Label: "Close pane", Icon: "close", Do: func() { a.S.ClosePane(pane.Pane) }},
+			{Label: "Close pane", Icon: "close", Do: func() { a.requestClose("pane.close", pane.Pane) }},
 		})
 	}
 	a.findBar(c, key, term)

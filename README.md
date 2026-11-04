@@ -89,7 +89,9 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
   returns typing to the terminal. Peeked sub-agents can be searched too
 - Focus and zoom per tab, click to focus, accent focus border
 - Space/tab/pane commands: new, close, rename, move, select, next/prev,
-  split right/down, close, zoom, focus/swap by direction
+  split right/down, close, zoom, focus/swap by direction. Closing a pane,
+  tab or space asks for confirmation when it would end a running program;
+  idle shells and finished terminals close immediately
 - The agents list from terminals that report status (OSC 7501), by priority,
   each agent with its own logo: Herdr's program table's icons (Claude Code,
   Codex, Pi, OpenCode, Grok, Gemini, …), full color where the mark is, and
