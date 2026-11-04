@@ -355,6 +355,7 @@ func (a *App) CloseOverlay() {
 		a.dropPeek()
 	}
 	a.overlay = ""
+	a.focusTerm = nil
 	a.mu.Lock()
 	a.mach.term = ""
 	a.mach.target = ""

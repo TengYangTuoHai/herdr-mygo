@@ -81,7 +81,7 @@ type App struct {
 	failedTerms map[string]bool // failed attachments wait until the pane is shown again
 	nextToastID uint64
 
-	focusPane string
+	focusTerm *terminal.Terminal
 	overlay   string
 	err       error
 
@@ -976,9 +976,11 @@ func (a *App) terminalView(c *ui.Context, p herdr.PaneInfo) {
 		return
 	}
 	view := terminal.View(c, term).Fill()
-	if a.focusPane == p.Pane {
-		a.focusPane = ""
-		view.AutoFocus()
+	// Give a newly selected or attached terminal the keyboard once; later
+	// frames leave panel inputs and terminal selections alone.
+	if p.Focused && !a.isOverlay() && a.focusTerm != term {
+		a.focusTerm = term
+		view.Focus()
 	}
 	if view.Clicked() {
 		a.S.FocusPane(p.Pane)
