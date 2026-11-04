@@ -172,7 +172,7 @@ func (a *App) View(c *ui.Context) {
 	if a.overlay == "settings" && c.Shortcut(ui.Cmd, ui.KeyF) {
 		a.openSettingsSearch()
 	}
-	if a.overlay != "" && c.Shortcut(0, ui.KeyEscape) {
+	if a.overlay != "" && a.overlay != "peek" && c.Shortcut(0, ui.KeyEscape) {
 		if a.overlay == "settings" && a.settings.ThemePicker != 0 {
 			a.settings.ThemePicker = 0
 		} else if a.overlay == "settings" && a.settings.SearchOpen {
