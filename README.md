@@ -81,6 +81,12 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
   Machines lists each machine with its state, and Connect / Remove
 - Terminal attach: live output, typing, resize, colors reported to programs,
   selection, copy/paste, links, scrollback (MyGo terminal plugin)
+- Find in terminal output and scrollback: ⌘F (Ctrl+Shift+F elsewhere),
+  or “Find in terminal” in the palette or pane's right-click menu. Matches
+  highlight as you type; Enter / Shift+Enter and the arrow buttons move
+  toward older / newer output, with a match count. ⌘G / ⌘⇧G (F3 / Shift+F3)
+  also navigate and reopen the last query. Escape closes the search and
+  returns typing to the terminal. Peeked sub-agents can be searched too
 - Focus and zoom per tab, click to focus, accent focus border
 - Space/tab/pane commands: new, close, rename, move, select, next/prev,
   split right/down, close, zoom, focus/swap by direction

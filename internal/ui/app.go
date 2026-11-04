@@ -88,6 +88,7 @@ type App struct {
 	// peek is the terminal the window looks at over the tab, and what has
 	// become of its attachment.
 	peek peekState
+	find findState
 
 	palette PaletteState
 	notes   []Toast
@@ -937,6 +938,10 @@ func (a *App) paneHeader(c *ui.Context, p herdr.PaneInfo) {
 		b := row.Bounds()
 		pane := p
 		a.openMenuAt(b.X+x, b.Y+y, []MenuItem{
+			{Label: "Find in terminal", Icon: "search", Do: func() {
+				a.S.FocusPane(pane.Pane)
+				a.openFindFor(pane.Pane+"|"+pane.Terminal, a.terminalFor(pane))
+			}},
 			{Label: "Split right", Icon: "split-right", Do: func() { a.splitPane(pane.Pane, "right") }},
 			{Label: "Split down", Icon: "split-down", Do: func() { a.splitPane(pane.Pane, "down") }},
 			{Label: "Zoom", Icon: "zoom", Do: func() { a.S.ZoomPane(pane.Pane) }},
@@ -987,7 +992,8 @@ func (a *App) terminalView(c *ui.Context, p herdr.PaneInfo) {
 	view := terminal.View(c, term).Fill()
 	// Give a newly selected or attached terminal the keyboard once; later
 	// frames leave panel inputs and terminal selections alone.
-	if p.Focused && !a.isOverlay() && a.focusTerm != term {
+	key := p.Pane + "|" + p.Terminal
+	if p.Focused && !a.isOverlay() && !(a.find.key == key && a.find.focus) && a.focusTerm != term {
 		a.focusTerm = term
 		view.Focus()
 	}
@@ -999,12 +1005,17 @@ func (a *App) terminalView(c *ui.Context, p herdr.PaneInfo) {
 		b := view.Bounds()
 		pane := p
 		a.openMenuAt(b.X+x, b.Y+y, []MenuItem{
+			{Label: "Find in terminal", Icon: "search", Do: func() {
+				a.S.FocusPane(pane.Pane)
+				a.openFindFor(key, term)
+			}},
 			{Label: "Split right", Icon: "split-right", Do: func() { a.splitPane(pane.Pane, "right") }},
 			{Label: "Split down", Icon: "split-down", Do: func() { a.splitPane(pane.Pane, "down") }},
 			{Label: "Zoom", Icon: "zoom", Do: func() { a.S.ZoomPane(pane.Pane) }},
 			{Label: "Close pane", Icon: "close", Do: func() { a.S.ClosePane(pane.Pane) }},
 		})
 	}
+	a.findBar(c, key, term)
 }
 
 // terminalFor returns the pane's terminal view, starting its attachment in
@@ -1087,6 +1098,9 @@ func (a *App) collect() {
 		for _, p := range a.S.Panes(tab.ID) {
 			live[p.Pane+"|"+p.Terminal] = true
 		}
+	}
+	if a.find.key != "" && !live[a.find.key] && a.find.key != "peek|"+a.peek.addr {
+		a.closeFind()
 	}
 	a.mu.Lock()
 	for key := range a.failedTerms {
