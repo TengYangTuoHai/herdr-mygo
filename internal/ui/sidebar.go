@@ -183,7 +183,7 @@ func (a *App) spaceRow(c *ui.Context, sp *herdr.Space, places []*herdr.Space, st
 				a.Prompt("Rename space", "Leave empty for where its first terminal is", sp.Name, "space.rename", id)
 			}},
 			{Label: "New tab", Icon: "plus", Do: func() { a.S.SelectSpace(0, id); a.newTab() }},
-			{Label: "Close", Icon: "close", Do: func() { a.S.CloseSpace(id) }},
+			{Label: "Close", Icon: "close", Do: func() { a.requestClose("space.close", id) }},
 		})
 	}
 }

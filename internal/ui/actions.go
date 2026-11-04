@@ -163,6 +163,9 @@ func (a *App) isOverlay() bool { return a.overlay != "" }
 
 // Run runs one of the app's commands by name, with an optional value.
 func (a *App) Run(action string) {
+	if a.overlay == "close-confirm" && action != "overlay.close" {
+		return
+	}
 	name, value := action, ""
 	if i := strings.Index(action, ":"); i > 0 {
 		name, value = action[:i], action[i+1:]
@@ -173,7 +176,7 @@ func (a *App) Run(action string) {
 		a.newTab()
 	case "tab.close":
 		if tab != nil {
-			a.S.CloseTab(tab.ID)
+			a.requestClose("tab.close", tab.ID)
 		}
 	case "tab.next":
 		a.S.NextTab(1)
@@ -193,7 +196,7 @@ func (a *App) Run(action string) {
 		a.newSpace()
 	case "space.close":
 		if sp != nil {
-			a.S.CloseSpace(sp.ID)
+			a.requestClose("space.close", sp.ID)
 		}
 	case "space.next":
 		a.S.NextSpace(1)
@@ -211,7 +214,7 @@ func (a *App) Run(action string) {
 		a.split(value)
 	case "pane.close":
 		if p := a.S.FocusedPane(); p.Pane != "" {
-			a.S.ClosePane(p.Pane)
+			a.requestClose("pane.close", p.Pane)
 		}
 	case "pane.zoom":
 		if p := a.S.FocusedPane(); p.Pane != "" {
@@ -367,6 +370,9 @@ func (a *App) ToggleOverlay(name string) {
 
 // CloseOverlay closes the overlay on top.
 func (a *App) CloseOverlay() {
+	if a.overlay == "close-confirm" {
+		a.closing = closeState{}
+	}
 	if a.overlay == "peek" {
 		a.dropPeek()
 	}

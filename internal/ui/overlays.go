@@ -197,6 +197,9 @@ func (a *App) overlays(c *ui.Context) {
 				a.CloseOverlay()
 			}
 			a.contextMenuOverlay(c)
+		case "close-confirm":
+			backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
+			a.closeConfirmOverlay(c)
 		case "prompt":
 			backdrop.Background(ui.RGBA(0, 0, 0, 0.25))
 			a.promptOverlay(c)
