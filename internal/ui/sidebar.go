@@ -424,6 +424,7 @@ func (a *App) subAgentRow(c *ui.Context, sub subRow) {
 	if row.Hovered() {
 		row.Background(t.Hover)
 	}
+	row.Cursor(ui.CursorPointer)
 	row.Children(func() {
 		for _, line := range sub.Lines {
 			ui.Box(c).Width(11).Height(26).Center().Children(func() {
