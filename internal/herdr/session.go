@@ -644,7 +644,7 @@ func (s *Session) agentsLocked() []*Agent {
 					TabIndex:  ti + 1,
 					TabName:   TabName(t, ti+1),
 					Status:    term.Word(),
-					Title:     term.Title,
+					Title:     term.AgentTitle(),
 					Seq:       term.Turn,
 					Pinned:    term.Labels["herdr.pinned"] == "true",
 					Focused: shownSpace != nil && shownSpace.ID == sp.ID && shownTabID == t.ID &&

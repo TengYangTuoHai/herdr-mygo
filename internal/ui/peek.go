@@ -279,11 +279,14 @@ func (a *App) peekParent(term *herdr.Terminal) string {
 	return terminalName(a.S.Terminal(addr), addr)
 }
 
-// terminalName is what the list and the peek bar call a terminal: its name,
-// else its template, else its program, else its address.
+// terminalName is what the list and the peek bar call a terminal: its session
+// title, else its name, template, program, or address.
 func terminalName(term *herdr.Terminal, addr string) string {
 	if term == nil {
 		return addr
+	}
+	if title := term.AgentTitle(); title != "" {
+		return title
 	}
 	if term.Name != nil && *term.Name != "" {
 		return *term.Name

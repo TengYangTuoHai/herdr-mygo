@@ -118,10 +118,20 @@ func TestClosingAPeekDropsItsAttachment(t *testing.T) {
 }
 
 // TestPeekNamesATerminalTheWayTheListDoes keeps the bar's name for a terminal
-// the same as the row's under it: its name, else its template, else its
-// program, else its address.
+// the same as the row's under it: its reported title, terminal title, name,
+// template, program, or address.
 func TestPeekNamesATerminalTheWayTheListDoes(t *testing.T) {
 	named := worker("t2", "t1", "worker one")
+	named.Title = "Session title"
+	named.Status = &herdr.Status{Title: "Reported title"}
+	if got := terminalName(named, "t2"); got != "Reported title" {
+		t.Errorf("a reporting terminal is called %q, want its reported title", got)
+	}
+	named.Status.Title = ""
+	if got := terminalName(named, "t2"); got != "Session title" {
+		t.Errorf("a titled terminal is called %q, want its terminal title", got)
+	}
+	named.Title = ""
 	if got := terminalName(named, "t2"); got != "worker one" {
 		t.Errorf("a named terminal is called %q, want its name", got)
 	}
