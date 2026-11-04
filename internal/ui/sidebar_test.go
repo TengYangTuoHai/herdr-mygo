@@ -365,13 +365,21 @@ func TestSubAgentRowPeeksAtItsWorker(t *testing.T) {
 	if !ok {
 		t.Fatal("the sub-agent's row is not drawn")
 	}
+	parent, ok := tt.Find("a-space")
+	if !ok {
+		t.Fatal("the parent row is not drawn")
+	}
+	tt.Move(parent.X+2, parent.Y+parent.H/2)
+	tt.Frame()
+	if got := tt.Cursor(); got != myui.CursorPointer {
+		t.Errorf("the cursor is %v over an agent, want pointer", got)
+	}
+
 	at := [2]float32{name.X + 2, name.Y + name.H/2}
 	tt.Move(at[0], at[1])
 	tt.Frame()
-	// Herdr's sub-row takes the hover surface, and no pointer: it is the
-	// click that says what it does.
-	if got := tt.Cursor(); got == myui.CursorPointer {
-		t.Errorf("the pointer is %v over a sub-agent, want the row's own", got)
+	if got := tt.Cursor(); got != myui.CursorPointer {
+		t.Errorf("the cursor is %v over a sub-agent, want pointer", got)
 	}
 
 	tt.ClickAt(at[0], at[1])
