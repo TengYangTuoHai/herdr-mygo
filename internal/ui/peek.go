@@ -102,6 +102,9 @@ func (a *App) peekFailed(addr string, err error) {
 // dropPeek ends the look: the terminal keeps running, it is the attachment
 // that closes.
 func (a *App) dropPeek() {
+	if a.find.key == "peek|"+a.peek.addr {
+		a.closeFind()
+	}
 	a.mu.Lock()
 	st := a.peek
 	a.peek = peekState{}
@@ -168,12 +171,13 @@ func (a *App) peekOverlay(c *ui.Context) {
 				})
 			default:
 				view := terminal.View(c, st.term).Fill()
-				if !st.focused {
+				if !st.focused && a.find.key != "peek|"+st.addr {
 					a.mu.Lock()
 					a.peek.focused = true
 					a.mu.Unlock()
-					view.AutoFocus()
+					view.Focus()
 				}
+				a.findBar(c, "peek|"+st.addr, st.term)
 			}
 		})
 	})

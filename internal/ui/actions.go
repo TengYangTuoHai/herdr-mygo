@@ -268,6 +268,12 @@ func (a *App) Run(action string) {
 		} else {
 			a.OpenOverlay(value)
 		}
+	case "terminal.find":
+		a.openFind()
+	case "terminal.find_next":
+		a.findStep(false)
+	case "terminal.find_previous":
+		a.findStep(true)
 	case "terminal.open":
 		a.newTab()
 	case "window.minimize":
@@ -366,6 +372,7 @@ func (a *App) CloseOverlay() {
 	}
 	a.overlay = ""
 	a.focusTerm = nil
+	a.find.focus = a.find.key != ""
 	a.mu.Lock()
 	a.mach.term = ""
 	a.mach.target = ""
