@@ -465,6 +465,15 @@ func (s *Session) ClosePane(pane string) {
 				if parent != nil {
 					for i, c := range parent.Children {
 						if c.ID == pane {
+							// The neighbor grows toward the removed pane; the other
+							// siblings keep their shares of this split.
+							if len(parent.Children) > 2 {
+								at := i - 1
+								if at < 0 {
+									at = i + 1
+								}
+								absorbPaneSize(parent.Children[at], c)
+							}
 							parent.Children = append(parent.Children[:i], parent.Children[i+1:]...)
 							break
 						}
@@ -474,6 +483,9 @@ func (s *Session) ClosePane(pane string) {
 						if gp != nil {
 							for i, c := range gp.Children {
 								if c.ID == parent.ID {
+									// The child's size was along the inner split's
+									// axis. Inherit its parent's outer allocation.
+									parent.Children[0].Size = parent.Size
 									gp.Children[i] = parent.Children[0]
 									break
 								}
@@ -515,6 +527,32 @@ func (s *Session) ClosePane(pane string) {
 	}
 	s.saveDoc()
 	s.changed()
+}
+
+// absorbPaneSize gives a neighbor the removed pane's share in a flat split.
+// A missing size grows with weight one, as the pane renderer does.
+func absorbPaneSize(neighbor, removed *Node) {
+	weight := func(n *Node) float64 {
+		if n.Size != nil {
+			if n.Size.Weight != nil && *n.Size.Weight > 0 {
+				return *n.Size.Weight
+			}
+			if n.Size.PX != nil && *n.Size.PX > 0 {
+				return 0
+			}
+		}
+		return 1
+	}
+	a, b := weight(neighbor), weight(removed)
+	if a > 0 && b > 0 {
+		sum := a + b
+		neighbor.Size = &Size{Weight: &sum}
+	} else if a == 0 && b == 0 {
+		sum := *neighbor.Size.PX + *removed.Size.PX
+		neighbor.Size = &Size{PX: &sum}
+	}
+	// Mixed px/weight pairs keep their existing allocation: converting
+	// between them requires the rendered extent, which the document lacks.
 }
 
 // ZoomPane shows one pane of the tab full size, or all again.
