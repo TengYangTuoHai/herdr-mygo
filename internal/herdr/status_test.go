@@ -199,3 +199,22 @@ func TestAgentsListCarriesTheMachineOfARemoteSpace(t *testing.T) {
 		}
 	}
 }
+func TestAgentsListRestoresSeenDoneFromTerminalLabel(t *testing.T) {
+	s := sessionWithOnePane(`{"address":"t10","state":"live","labels":{"herdr.seen":"3"},"status":{"state":"done"},"turn":3}`)
+	s.mu.Lock()
+	list := s.agentsLocked()
+	s.mu.Unlock()
+	if len(list) != 1 || list[0].Status != "idle" {
+		t.Fatalf("restored seen agent: %+v, want one idle agent", list)
+	}
+}
+
+func TestAgentsListDoesNotRestoreSeenFromEarlierTurn(t *testing.T) {
+	s := sessionWithOnePane(`{"address":"t10","state":"live","labels":{"herdr.seen":"2"},"status":{"state":"done"},"turn":3}`)
+	s.mu.Lock()
+	list := s.agentsLocked()
+	s.mu.Unlock()
+	if len(list) != 1 || list[0].Status != "done" {
+		t.Fatalf("new turn status: %+v, want one done agent", list)
+	}
+}

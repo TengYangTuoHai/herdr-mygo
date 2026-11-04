@@ -617,7 +617,8 @@ func (s *Session) agentsLocked() []*Agent {
 				if term.Parent != nil {
 					a.Parent = term.Parent
 				}
-				if s.seen[addr] && a.Status == "done" {
+				seenTurn := term.Labels["herdr.seen"] == fmt.Sprint(term.Turn)
+				if (s.seen[addr] || seenTurn) && a.Status == "done" {
 					a.Status = "idle"
 				}
 				out = append(out, a)
