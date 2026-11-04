@@ -142,7 +142,9 @@ func (a *App) peekOverlay(c *ui.Context) {
 	panel.Children(func() {
 		a.peekBar(c, st)
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
-		ui.Box(c).Grow(1).FillWidth().Background(t.Background).Clip().Children(func() {
+		// MyGo's GPU clips custom terminal painting to the innermost clip.
+		// Match the card's inner bottom radius (12 minus its 1px border).
+		ui.Box(c).Grow(1).FillWidth().Radius(0, 0, 11, 11).Clip().Children(func() {
 			switch {
 			case st.err != "":
 				ui.Box(c).Fill().Center().Padding(24).Children(func() {
