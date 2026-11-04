@@ -173,7 +173,9 @@ func (a *App) View(c *ui.Context) {
 		a.openSettingsSearch()
 	}
 	if a.overlay != "" && c.Shortcut(0, ui.KeyEscape) {
-		if a.overlay == "settings" && a.settings.SearchOpen {
+		if a.overlay == "settings" && a.settings.ThemePicker != 0 {
+			a.settings.ThemePicker = 0
+		} else if a.overlay == "settings" && a.settings.SearchOpen {
 			a.closeSettingsSearch()
 		} else {
 			a.CloseOverlay()
@@ -184,7 +186,14 @@ func (a *App) View(c *ui.Context) {
 	// the pointer in the frame it moves.
 	a.resizeHandle(c)
 	a.paneDragged, a.paneDrag = a.paneDrag, false
-	ui.Row(c).Fill().Background(t.Canvas).Font(UIFont).AlignItems(ui.Start).Children(func() {
+	frame := ui.Row(c).Fill().Background(t.Canvas).Font(UIFont).AlignItems(ui.Start)
+	if len(t.Backdrop.Stops) > 0 {
+		frame.LinearGradient(t.Backdrop)
+	}
+	frame.Children(func() {
+		if len(t.Glow.Stops) > 0 {
+			ui.Box(c).Absolute().Fill().LinearGradient(t.Glow)
+		}
 		a.sidebar(c)
 		if a.sidebarShown > 0 {
 			ui.Box(c).Width(1).FillHeight().Background(t.Border)
@@ -1111,10 +1120,19 @@ func (a *App) SetSystemAppearance(dark bool) {
 	}
 }
 
-// applyTheme resolves the theme the window draws with from the appearance
-// and the theme picked, and gives it to the terminals.
+func (a *App) appearanceDark() bool {
+	switch a.settings.Appearance {
+	case AppearanceLight:
+		return false
+	case AppearanceDark:
+		return true
+	}
+	return a.systemDark
+}
+
+// applyTheme gives the appearance’s chosen colors to the window and terminals.
 func (a *App) applyTheme() {
-	name, th := ThemeFor(a.settings.Theme, a.settings.Appearance, a.systemDark)
+	name, th := a.settings.themeFor(a.appearanceDark())
 	if validHex(a.settings.Accent) {
 		th.Accent = ui.Hex(a.settings.Accent)
 	}
@@ -1123,8 +1141,7 @@ func (a *App) applyTheme() {
 	a.Repaint()
 }
 
-// currentThemeName is the theme drawn now: the one picked, unless the
-// appearance picked another for this light or dark.
+// currentThemeName is the theme drawn for the current appearance.
 func (a *App) currentThemeName() string {
 	if a.themeName != "" {
 		return a.themeName
@@ -1165,13 +1182,18 @@ func colorHex(c ui.Color) string {
 // terminalTheme is the terminal's colors from the window's theme.
 func terminalTheme(t *Theme) *terminal.Theme {
 	th := &terminal.Theme{
-		Foreground: t.TerminalForeground,
-		Background: t.Background,
-		Cursor:     t.Cursor,
-		Selection:  t.Selection,
-		Palette:    t.Ansi,
+		Foreground:    t.TerminalForeground,
+		Background:    t.Background,
+		Cursor:        t.Cursor,
+		Selection:     t.Selection,
+		SelectionText: t.SelectionText,
+		CursorText:    t.CursorText,
+		Palette:       t.Ansi,
 	}
-	th.CursorText = t.Background
+	if t.terminalColors != nil {
+		th.Search, th.SearchText = t.terminalColors.Search, t.terminalColors.SearchText
+		th.SearchSelected, th.SearchSelectedText = t.terminalColors.SearchSelected, t.terminalColors.SearchSelectedText
+	}
 	return th
 }
 

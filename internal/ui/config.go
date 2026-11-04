@@ -22,6 +22,8 @@ func ConfigPath() string {
 type settingsFile struct {
 	Appearance      int     `json:"appearance"`
 	Theme           string  `json:"theme"`
+	LightTheme      string  `json:"light_theme,omitempty"`
+	DarkTheme       string  `json:"dark_theme,omitempty"`
 	Accent          string  `json:"accent"`
 	InterfaceFont   string  `json:"interface_font"`
 	InterfaceSize   int     `json:"interface_size"`
@@ -49,6 +51,7 @@ type settingsFile struct {
 func (s settingsState) file() settingsFile {
 	return settingsFile{
 		Appearance: s.Appearance, Theme: s.Theme, Accent: s.Accent,
+		LightTheme: s.LightTheme, DarkTheme: s.DarkTheme,
 		InterfaceFont: s.InterfaceFont, InterfaceSize: s.InterfaceSize,
 		TerminalFont: s.TerminalFont, TerminalSize: s.TerminalSize,
 		OptionAsAlt: s.OptionAsAlt, Clipboard: s.Clipboard,
@@ -76,6 +79,8 @@ func readSettings(data []byte, s settingsState) settingsState {
 	}
 	take("appearance", &s.Appearance)
 	take("theme", &s.Theme)
+	take("light_theme", &s.LightTheme)
+	take("dark_theme", &s.DarkTheme)
 	take("accent", &s.Accent)
 	take("interface_font", &s.InterfaceFont)
 	take("interface_size", &s.InterfaceSize)
@@ -107,7 +112,13 @@ func (s settingsState) sanitized() settingsState {
 	if !knownTheme(s.Theme) {
 		s.Theme = "graphite"
 	}
-	if !validHex(s.Accent) {
+	if s.LightTheme != "" && !knownTheme(s.LightTheme) {
+		s.LightTheme = "paper"
+	}
+	if s.DarkTheme != "" && !knownTheme(s.DarkTheme) {
+		s.DarkTheme = "graphite"
+	}
+	if s.Accent != "" && !validHex(s.Accent) {
 		s.Accent = defaultSettings().Accent
 	}
 	s.InterfaceSize = clampInt(s.InterfaceSize, 8, 40)

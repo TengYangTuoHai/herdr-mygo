@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
 	"herdr-mygo/internal/herdr"
@@ -100,8 +101,8 @@ func (a *App) settingsEntries() []settingsEntry {
 	}
 	return []settingsEntry{
 		entry("look", "Appearance", "System, or always light or dark.", pick(appearanceNames, s.Appearance)),
-		entry("look", "Theme", "Colors for the chrome and every terminal.", strings.Title(a.currentThemeName())),
-		entry("look", "Accent", "Focus rings, selections and key hints.", strings.ToUpper(s.Accent)),
+		entry("look", "Theme", "Colors for the chrome and every terminal.", themeLabel(a.currentThemeName())),
+		entry("look", "Accent", "Focus rings, selections and key hints.", accentLabel(s.Accent)),
 		entry("look", "Interface font", "The panels’ typeface and size.", fmt.Sprintf("%s %d", s.InterfaceFont, s.InterfaceSize)),
 		entry("look", "Terminal font", "Used by every pane, on every machine.", fmt.Sprintf("%s %d", s.TerminalFont, s.TerminalSize)),
 		entry("look", "Zoom", "Scales the whole window, terminals included.", fmt.Sprintf("%.0f%%", zoom*100)),
@@ -744,11 +745,19 @@ func (a *App) settingsLink(c *ui.Context, label string, onClick func()) {
 	}
 }
 
+func accentLabel(accent string) string {
+	if accent == "" {
+		return "Theme"
+	}
+	return strings.ToUpper(accent)
+}
+
 // settingsDots is the accent color chooser.
 func (a *App) settingsDots(c *ui.Context) {
 	t := a.T
 	colors := []string{"#96b2d7", "#e5c07b", "#f0705f", "#a6bd91", "#b5a2ce"}
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+		a.settingsLink(c, "Theme", func() { a.settings.Accent = ""; a.applyTheme() })
 		for _, hex := range colors {
 			hex := hex
 			wrap := ui.Box(c).Size(24, 24).Radius(12).Center().Cursor(ui.CursorPointer)
@@ -763,9 +772,6 @@ func (a *App) settingsDots(c *ui.Context) {
 				a.applyTheme()
 			}
 		}
-		more := ui.Box(c).Size(24, 24).Radius(12).Center().Border(1, t.Input).
-			Cursor(ui.CursorPointer)
-		more.Children(func() { a.icon(c, "plus", 10, t.Dim) })
 	})
 }
 
@@ -830,78 +836,143 @@ func (a *App) settingsFont(c *ui.Context, name string, size int, mono bool) {
 	})
 }
 
-// settingsThemeCard is the theme picker and its previews.
+// settingsThemeCard keeps a separate choice for light and dark windows.
 func (a *App) settingsThemeCard(c *ui.Context) {
 	t := a.T
 	a.settingsCard(c, func() {
-		ui.Column(c).Padding(14, 16, 16, 16).Gap(12).Children(func() {
-			ui.Row(c).FillWidth().Gap(16).AlignItems(ui.Start).Children(func() {
-				ui.Column(c).Grow(1).Gap(2).Children(func() {
-					ui.Text(c, "Theme").FontSize(13.5).FontWeight(500).TextColor(t.Foreground)
-					ui.Text(c, "Colors for the chrome and every terminal. The theme picked here wins over a layout’s own.").
-						FontSize(11.5).TextColor(t.Dim).Wrap()
-				})
-				a.settingsLink(c, "Edit colors…", nil)
-			})
-			ui.Row(c).FillWidth().Gap(12).Children(func() {
-				for _, name := range themes {
-					a.settingsThemeTile(c, name)
+		ui.Column(c).Padding(14, 16, 16, 16).Gap(14).Children(func() {
+			ui.Text(c, "Theme").FontSize(13.5).FontWeight(500).TextColor(t.Foreground)
+			ui.Text(c, "Choose colors for light and dark windows. Chrome and every terminal change together.").FontSize(11.5).TextColor(t.Dim).Wrap()
+			for _, dark := range []bool{false, true} {
+				label, picker := "Light windows", 1
+				names := append([]string{"paper"}, keroThemes...)
+				if dark {
+					label, picker = "Dark windows", 2
+					names = append([]string{"graphite", "ink", "moss"}, keroThemes...)
 				}
-			})
+				ui.Text(c, label).FontSize(12).TextColor(t.Muted)
+				ui.Row(c).FillWidth().Gap(12).Wrap().Children(func() {
+					for _, name := range names {
+						a.settingsThemeTile(c, name, dark)
+					}
+				})
+				name, _ := a.settings.themeFor(dark)
+				a.settingsRow(c, "Ghostty theme", "Built-in and installed Ghostty palettes.", func() {
+					a.settingsButton(c, themeLabel(name)+"  ⌄", false, false, func() {
+						if a.settings.ThemePicker == picker {
+							a.settings.ThemePicker = 0
+						} else {
+							a.settings.ThemePicker = picker
+							a.settings.ThemeSearch = ""
+						}
+					})
+				})
+				if a.settings.ThemePicker == picker {
+					a.settingsGhosttyPicker(c, dark)
+				}
+			}
 		})
 	})
 }
 
-// settingsThemeTile is one theme, with a miniature terminal.
-func (a *App) settingsThemeTile(c *ui.Context, name string) {
-	t := a.T
-	th := ThemeByName(name)
-	on := a.currentThemeName() == name
-	col := ui.Column(c).Grow(1).Gap(6).Cursor(ui.CursorPointer)
+func themeLabel(name string) string {
+	if _, ok := washTable[name]; ok {
+		return strings.Title(name)
+	}
+	for _, builtin := range themes {
+		if name == builtin {
+			return strings.Title(name)
+		}
+	}
+	return name
+}
+
+// settingsThemeTile previews the wash, terminal and ANSI colors together.
+func (a *App) settingsThemeTile(c *ui.Context, name string, dark bool) {
+	t, th := a.T, themeForAppearance(name, dark)
+	selected, _ := a.settings.themeFor(dark)
+	on := selected == name
+	key := fmt.Sprintf("theme-%v-%s", dark, name)
+	appearance := "light windows"
+	if dark {
+		appearance = "dark windows"
+	}
+	col := ui.ButtonBase(c.Key(key)).Column().Width(104).Gap(6).Label(themeLabel(name) + ", " + appearance)
 	col.Children(func() {
 		border := t.Border
 		if on {
 			border = t.Accent
-		} else if !th.Dark {
-			border = ui.RGBA(0, 0, 0, 0.14)
 		}
-		prev := ui.Column(c).Height(82).FillWidth().Radius(8).
-			Background(th.Background).Border(1, border).Padding(9, 10).Gap(3)
+		prev := ui.Box(c).Size(104, 74).Radius(8).Background(th.Chrome).Border(1, border).Padding(7)
+		if len(th.Backdrop.Stops) > 0 {
+			prev.LinearGradient(th.Backdrop)
+		}
 		prev.Children(func() {
-			ui.Row(c).Gap(3).Children(func() {
-				for i := 0; i < 3; i++ {
-					ui.Box(c).Size(4, 4).Radius(2).Background(th.Dim)
-				}
+			ui.Column(c).Fill().Radius(5).Background(th.Background).Padding(7).Gap(5).Children(func() {
+				ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, "Aa").FontSize(16).TextColor(th.TerminalForeground).Grow(1)
+					ui.Box(c).Size(5, 12).Background(th.Cursor)
+				})
+				ui.Row(c).Gap(3).Children(func() {
+					for i := 0; i < 8; i++ {
+						ui.Box(c).Size(6, 6).Radius(3).Background(th.Ansi[i])
+					}
+				})
 			})
-			line := func(s string, color ui.Color) {
-				ui.Text(c, s).Font(TerminalFont).FontSize(8).TextColor(color).SingleLine()
-			}
-			line("$ go test ./...", th.Foreground)
-			line("ok  internal/ui", th.Working)
-			line("$ hc ls", th.Foreground)
-			ui.Box(c).Size(4, 8).Background(th.Accent)
 			if on {
-				badge := ui.Box(c).Absolute().Top(5).Right(5).Size(15, 15).Radius(8).
-					Background(t.Accent).Center()
-				badge.Children(func() { a.icon(c, "check", 9, t.AccentForeground) })
+				ui.Box(c).Absolute().Top(4).Right(4).Size(14, 14).Radius(7).Background(t.Accent).Center().Children(func() { a.icon(c, "check", 9, t.AccentForeground) })
 			}
 		})
-		nm := ui.Row(c).Gap(6).AlignItems(ui.Center)
-		nm.Children(func() {
-			color := t.Muted
-			if on {
-				color = t.Foreground
-			}
-			ui.Text(c, strings.Title(name)).FontSize(11.5).TextColor(color)
-			if name == "graphite" {
-				ui.Text(c, "Default").FontSize(10.5).TextColor(t.Dim)
-			}
-		})
+		color := t.Muted
+		if on {
+			color = t.Foreground
+		}
+		ui.Text(c, themeLabel(name)).FontSize(11.5).TextColor(color)
 	})
 	if col.Clicked() {
-		a.settings.Theme = name
-		a.applyTheme()
+		a.chooseTheme(name, dark)
 	}
+}
+
+func (a *App) settingsGhosttyPicker(c *ui.Context, dark bool) {
+	t := a.T
+	ui.Column(c).FillWidth().Gap(6).Padding(10).Radius(8).Border(1, t.Border).Background(t.Popover).Children(func() {
+		input := ui.TextInputBase(c.Key("ghostty-search"), &a.settings.ThemeSearch).FillWidth().Height(28).FontSize(12).TextColor(t.Foreground).Placeholder("Search Ghostty themes…").AutoFocus()
+		matches := ghosttyMatches(a.settings.ThemeSearch)
+		if len(matches) == 0 {
+			ui.Text(c, "No themes found").FontSize(12).TextColor(t.Dim)
+		}
+		ui.Scroll(c).FillWidth().Height(min(float32(len(matches))*28, 168)).Children(func() {
+			ui.Column(c).FillWidth().Children(func() {
+				for _, name := range matches {
+					row := ui.ButtonBase(c.Key("ghostty-" + name)).Row().AlignItems(ui.Center).FillWidth().Height(28).PaddingX(8).Label(name)
+					if row.Hovered() {
+						row.Background(t.Hover)
+					}
+					row.Children(func() { ui.Text(c, name).FontSize(12).TextColor(t.Foreground) })
+					if row.Clicked() {
+						a.chooseTheme(name, dark)
+						a.settings.ThemePicker = 0
+					}
+				}
+			})
+		})
+		if len(matches) > 0 && input.Submitted() {
+			a.chooseTheme(matches[0], dark)
+			a.settings.ThemePicker = 0
+		}
+	})
+}
+
+func ghosttyMatches(query string) []string {
+	query = strings.ToLower(strings.TrimSpace(query))
+	var matches []string
+	for _, name := range terminal.GhosttyThemes() {
+		if strings.Contains(strings.ToLower(name), query) {
+			matches = append(matches, name)
+		}
+	}
+	return matches
 }
 
 // settingsTerminal is the Terminal section.
