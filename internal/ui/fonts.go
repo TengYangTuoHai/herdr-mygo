@@ -9,19 +9,24 @@ import (
 	"herdr-mygo/internal/assets"
 )
 
-// RegisterFonts adds the app's own fonts: JetBrains Mono for terminals, Geist
-// for the panels.
+// RegisterFonts adds JetBrains Mono with Nerd Fonts' prompt and TUI icons
+// for terminals, and Geist for the panels. Keep the terminal family name so
+// existing settings and terminal views use the bundled glyphs.
 func RegisterFonts() {
-	for family, name := range map[string]string{
-		"JetBrains Mono": "fonts/JetBrainsMono-Variable.ttf",
-		"Geist":          "fonts/Geist.ttf",
+	for _, font := range []struct{ family, name string }{
+		{TerminalFont, "fonts/JetBrainsMonoNerdFont-Regular.ttf"},
+		{TerminalFont, "fonts/JetBrainsMonoNerdFont-Bold.ttf"},
+		{TerminalFont, "fonts/JetBrainsMonoNerdFont-Italic.ttf"},
+		{TerminalFont, "fonts/JetBrainsMonoNerdFont-BoldItalic.ttf"},
+		{UIFont, "fonts/Geist.ttf"},
 	} {
-		data, err := fs.ReadFile(assets.Files, name)
+		data, err := fs.ReadFile(assets.Files, font.name)
 		if err != nil {
+			log.Printf("font %s: %v", font.name, err)
 			continue
 		}
-		if err := ui.RegisterFont(data, family); err != nil {
-			log.Printf("font %s: %v", family, err)
+		if err := ui.RegisterFont(data, font.family); err != nil {
+			log.Printf("font %s: %v", font.name, err)
 		}
 	}
 }
