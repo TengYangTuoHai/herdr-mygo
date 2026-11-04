@@ -50,11 +50,20 @@ func (a *App) startPeek(addr string) {
 		return
 	}
 	t := a.T
-	conn, err := a.S.Attach(addr, 80, 24, t.TerminalForeground, t.Background, t.Cursor, 8, 16)
-	if err != nil {
-		a.peekFailed(addr, err)
-		return
-	}
+	var view *terminal.Terminal
+	conn := newPeekConnection(func(cols, rows, cellW, cellH int) (peekStream, error) {
+		attached, err := a.S.Attach(addr, cols, rows, t.TerminalForeground, t.Background, t.Cursor, cellW, cellH)
+		if err != nil {
+			a.peekFailed(addr, err)
+			return nil, err
+		}
+		a.mu.Lock()
+		if a.peek.addr == addr && a.peek.term == view {
+			a.peek.conn = attached
+		}
+		a.mu.Unlock()
+		return attached, nil
+	})
 	view, err := terminal.New(terminal.Options{
 		Conn:         conn,
 		Font:         terminal.Font{Family: TerminalFont, Size: 14},
@@ -75,7 +84,7 @@ func (a *App) startPeek(addr string) {
 		_ = view.Close()
 		return
 	}
-	a.peek.term, a.peek.conn = view, conn
+	a.peek.term = view
 	a.mu.Unlock()
 	a.Repaint()
 }
