@@ -454,9 +454,12 @@ func (a *App) agentRow(c *ui.Context, ag *herdr.Agent) {
 	row.Cursor(ui.CursorPointer)
 	row.Children(func() {
 		a.programIcon(c, ag.Program, 14, t.Foreground)
-		name := ag.SpaceName
-		if !strings.HasPrefix(ag.TabName, ag.SpaceName) && ag.TabName != "" && ag.TabName != "1" {
-			name += " · " + ag.TabName
+		name := ag.Title
+		if name == "" {
+			name = ag.SpaceName
+			if !strings.HasPrefix(ag.TabName, ag.SpaceName) && ag.TabName != "" && ag.TabName != "1" {
+				name += " · " + ag.TabName
+			}
 		}
 		color := t.Foreground
 		if ag.Status == "idle" && !ag.Focused {

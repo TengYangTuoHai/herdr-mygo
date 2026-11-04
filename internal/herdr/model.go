@@ -210,6 +210,15 @@ type Foreground struct {
 // Word returns the agent's reported word, "" when it reports none.
 func (t *Terminal) Word() string { return t.Status.Word() }
 
+// AgentTitle is the agent's reported session title, falling back to the
+// terminal title when the program does not report one.
+func (t *Terminal) AgentTitle() string {
+	if t.Status != nil && t.Status.Title != "" {
+		return t.Status.Title
+	}
+	return t.Title
+}
+
 // Live reports whether the terminal's program runs.
 func (t *Terminal) Live() bool { return t.State == "live" }
 
