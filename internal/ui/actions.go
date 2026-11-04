@@ -88,7 +88,11 @@ type PromptState struct {
 type settingsState struct {
 	Section       string
 	Appearance    int
-	Theme         string
+	Theme         string // legacy single theme; used until an appearance has its own choice
+	LightTheme    string
+	DarkTheme     string
+	ThemeSearch   string
+	ThemePicker   int // 0 closed, 1 light, 2 dark
 	Accent        string
 	InterfaceFont string
 	InterfaceSize int
@@ -129,7 +133,7 @@ func defaultSettings() settingsState {
 	return settingsState{
 		Section:         "look",
 		Theme:           "graphite",
-		Accent:          "#96b2d7",
+		Accent:          "",
 		InterfaceFont:   "Geist",
 		InterfaceSize:   13,
 		TerminalFont:    "JetBrains Mono",
@@ -246,8 +250,14 @@ func (a *App) Run(action string) {
 		a.Repaint()
 	case "app.theme":
 		if knownTheme(value) {
-			a.settings.Theme = value
-			a.applyTheme()
+			dark := a.appearanceDark()
+			switch value {
+			case "paper":
+				dark = false
+			case "graphite", "ink", "moss":
+				dark = true
+			}
+			a.chooseTheme(value, dark)
 		}
 		a.Repaint()
 	case "app.quit":

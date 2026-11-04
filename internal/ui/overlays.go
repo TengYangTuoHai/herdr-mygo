@@ -18,7 +18,7 @@ type paletteCommand struct {
 }
 
 // paletteCommands are the commands the palette offers, as Herdr names them.
-var paletteCommands = []paletteCommand{
+var paletteCommands = append([]paletteCommand{
 	{"New tab", "Tab", "tab.new", "tab agent new task"},
 	{"Go to space or tab…", "Tab", "mod.open:picker", "switch jump find"},
 	{"Rename tab", "Tab", "tab.rename", "tab"},
@@ -62,6 +62,14 @@ var paletteCommands = []paletteCommand{
 	{"Theme: ink", "App", "app.theme:ink", "colors look"},
 	{"Theme: moss", "App", "app.theme:moss", "colors look"},
 	{"Theme: paper", "App", "app.theme:paper", "colors look"},
+}, keroThemeCommands()...)
+
+func keroThemeCommands() []paletteCommand {
+	var commands []paletteCommand
+	for _, name := range keroThemes {
+		commands = append(commands, paletteCommand{"Theme: " + name, "App", "app.theme:" + name, "colors look"})
+	}
+	return commands
 }
 
 // paletteGroupOrder is the palette's grouping.

@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -19,6 +20,9 @@ type Theme struct {
 	Working, Blocked, Done, Idle, Unknown           ui.Color
 	Ansi                                            [16]ui.Color
 	Dark                                            bool
+	CursorText, SelectionText                       ui.Color
+	Backdrop, Glow                                  ui.LinearGradient
+	terminalColors                                  *terminal.Theme
 }
 
 type palette struct {
@@ -72,20 +76,24 @@ var paper = palette{
 	},
 }
 
-// themes are the themes the settings offer, in the order they show.
+// themes are the original Herdr palettes, kept for existing settings.
 var themes = []string{"graphite", "ink", "moss", "paper"}
 
-// knownTheme reports whether name is one of them.
+// knownTheme accepts a Herdr palette, a Kero tone or a loadable Ghostty theme.
 func knownTheme(name string) bool {
 	for _, t := range themes {
 		if t == name {
 			return true
 		}
 	}
-	return false
+	if _, ok := washTable[name]; ok {
+		return true
+	}
+	_, err := terminal.GhosttyTheme(name)
+	return err == nil
 }
 
-// ThemeByName resolves a built-in theme, graphite when the name is unknown.
+// ThemeByName resolves a theme in its default appearance, graphite when unknown.
 func ThemeByName(name string) *Theme {
 	var p palette
 	switch name {
@@ -95,8 +103,10 @@ func ThemeByName(name string) *Theme {
 		p = moss
 	case "paper":
 		p = paper
-	default:
+	case "graphite":
 		p = graphite
+	default:
+		return themeForAppearance(name, true)
 	}
 	return resolve(p)
 }
@@ -120,6 +130,12 @@ func ThemeFor(name string, appearance int, systemDark bool) (string, *Theme) {
 		dark = false
 	case AppearanceDark:
 		dark = true
+	}
+	if _, ok := washTable[name]; ok {
+		return name, themeForAppearance(name, dark)
+	}
+	if !knownTheme(name) {
+		name = "graphite"
 	}
 	if picked := ThemeByName(name); picked.Dark == dark {
 		return name, picked
@@ -213,6 +229,7 @@ func resolve(p palette) *Theme {
 		Ring:               rgb(mix(bg, fg, 0.7)),
 		Selection:          rgb(p.selection),
 		Cursor:             rgb(p.foreground),
+		CursorText:         rgb(bg),
 		Working:            rgb(p.status[0]),
 		Blocked:            rgb(p.status[1]),
 		Done:               rgb(p.status[2]),

@@ -48,9 +48,14 @@ the terminal plugin uses, the same Ghostty VT the original app uses).
 The window follows the shipped `main` layout: a 268 px sidebar with the
 spaces list, the agents list and the footer; a 42 px tab bar; pane cards
 (radius 10, 1 px border, accent border while focused, 30 px header); a
-28 px status bar; Files/Changes as a 368 px side panel. Colors come from
+28 px status bar; Files/Changes as a 368 px side panel. The default colors come from
 Herdr's `graphite` theme, resolved with the same formula Herdr uses
 (`settings.rs`), and terminals use the same palette, font and padding.
+Settings → Look also offers Kero's tinted themes and gradient backgrounds,
+with separate choices for light and dark windows, plus searchable Ghostty
+themes (including installed files in Ghostty's themes folder). The chrome
+and every open terminal follow the chosen palette. Choose “Theme” under
+Accent to use the palette's accent, or pick an override.
 
 Keys are read from `~/.config/herdr-mygo/keys.json` (or `$XDG_CONFIG_HOME`,
 or `$HERDR_MYGO_HOME`, else the shipped `keys.macos.json` / `keys.json`), so
@@ -91,10 +96,13 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
 - Go-to-space-or-tab picker, new-tab menu, right-click menus on spaces,
   tabs and panes, prompt dialogs, toasts
 - Settings for Look, Terminal, Machines, Alerts, Updates and Privacy, with
-  search (⌘F), a theme picker, live controls and the Paper theme; welcome and
-  the keys list. Appearance follows the desktop, or stays light or dark, and
-  the theme — chrome and every open terminal — changes with it: dark themes
-  (Graphite, Ink, Moss) and Paper for the light
+  search (⌘F), theme previews and live controls; welcome and the keys list.
+  Appearance follows the desktop, or stays light or dark. Light and dark
+  choices persist separately in `light_theme` and `dark_theme`; older
+  single-`theme` settings retain their previous appearance fallback.
+  Graphite, Ink, Moss and Paper remain available alongside Kero's Petal,
+  Mist, Meadow, Dusk, Tide, Apricot, Aurora, Dune, Neutral and Plain.
+  Neutral is Kero's paper wash, named separately to keep Herdr's Paper palette
 - The app keeps its own files, apart from herdr-app's, under
   `~/.config/herdr-mygo`: `settings.json` written as a setting changes, the
   keys, and the screen's view
