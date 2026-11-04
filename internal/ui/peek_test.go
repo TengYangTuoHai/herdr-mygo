@@ -2,7 +2,6 @@ package ui
 
 import (
 	"io"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -192,9 +191,51 @@ func TestPeekTakesTheKeysOfTheTerminalItShows(t *testing.T) {
 	tt := myui.NewTester(app.View, 1280, 820)
 	tt.SetFocused(true)
 	tt.Frame()
+	tt.Key(0, myui.KeyEscape)
+	if app.overlay != "peek" {
+		t.Fatal("Escape closed the peek instead of reaching its terminal")
+	}
 	tt.Type("hi")
+	tt.Key(myui.Ctrl, myui.KeyC)
+	tt.Key(0, myui.KeyLeft)
 	tt.Frame()
-	if got := conn.typed(); !strings.Contains(got, "hi") {
-		t.Fatalf("the peek took %q of what was typed, want hi", got)
+	if got, want := conn.typed(), "\x1bhi\x03\x1b[D"; got != want {
+		t.Fatalf("the peek took %q of what was typed, want %q", got, want)
+	}
+
+	// App shortcuts stay available while the terminal holds the keyboard.
+	mods, key, ok := parseBinding(KeyFor("layout.toggle:sidebar"))
+	if !ok {
+		t.Fatal("no sidebar shortcut")
+	}
+	tt.Key(mods, key)
+	if app.SidebarOpen || app.overlay != "peek" {
+		t.Fatal("the sidebar shortcut did not toggle the sidebar with the peek open")
+	}
+	if err := tt.Click("✕"); err != nil {
+		t.Fatal(err)
+	}
+	if app.overlay != "" {
+		t.Fatal("the close button did not close the peek")
+	}
+}
+
+func TestOverlayEscapeDismissal(t *testing.T) {
+	RegisterFonts()
+	for _, overlay := range []string{"peek", "help"} {
+		t.Run(overlay, func(t *testing.T) {
+			app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+			app.overlay = overlay
+			tt := myui.NewTester(app.View, 1280, 820)
+			tt.Frame()
+			tt.Key(0, myui.KeyEscape)
+			want := ""
+			if overlay == "peek" {
+				want = "peek"
+			}
+			if app.overlay != want {
+				t.Fatalf("Escape left overlay %q, want %q", app.overlay, want)
+			}
+		})
 	}
 }
