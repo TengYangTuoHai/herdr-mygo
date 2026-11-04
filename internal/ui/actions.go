@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"herdr-mygo/internal/assets"
 )
@@ -28,7 +29,10 @@ type Toast struct {
 	Title string
 	Body  string
 	Level string
+	id    uint64
 }
+
+const toastDuration = 5 * time.Second
 
 // toast shows a note, replacing notes of the same title.
 func (a *App) toast(title, body, level string) {
@@ -39,12 +43,28 @@ func (a *App) toast(title, body, level string) {
 			out = append(out, n)
 		}
 	}
-	a.notes = append(out, Toast{Title: title, Body: body, Level: level})
+	a.nextToastID++
+	id := a.nextToastID
+	a.notes = append(out, Toast{Title: title, Body: body, Level: level, id: id})
 	if len(a.notes) > 3 {
 		a.notes = a.notes[len(a.notes)-3:]
 	}
 	a.mu.Unlock()
 	a.Repaint()
+	time.AfterFunc(toastDuration, func() { a.expireToast(id) })
+}
+
+func (a *App) expireToast(id uint64) {
+	a.mu.Lock()
+	for i, n := range a.notes {
+		if n.id == id {
+			a.notes = append(a.notes[:i], a.notes[i+1:]...)
+			a.mu.Unlock()
+			a.Repaint()
+			return
+		}
+	}
+	a.mu.Unlock()
 }
 
 // PaletteState is the command palette's search and selection.

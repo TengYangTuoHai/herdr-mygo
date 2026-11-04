@@ -644,7 +644,7 @@ func (a *App) toasts(c *ui.Context) {
 				card := ui.Column(c).Width(320).Padding(12).Gap(3).Radius(10).Background(t.Popover).
 					Border(1, t.Border).Shadow(0, 12, 30, 0, ui.RGBA(0, 0, 0, 0.4))
 				card.Children(func() {
-					ui.Row(c).Gap(8).Children(func() {
+					ui.Row(c).Gap(8).FillWidth().AlignItems(ui.Center).Children(func() {
 						color := t.Foreground
 						switch n.Level {
 						case "error":
@@ -653,6 +653,7 @@ func (a *App) toasts(c *ui.Context) {
 							color = t.Done
 						}
 						ui.Text(c, n.Title).FontSize(12.5).FontWeight(600).TextColor(color).Grow(1)
+						a.iconButton(c, "close", 22, "Dismiss notification", func() { a.expireToast(n.id) })
 					})
 					if n.Body != "" {
 						ui.Text(c, n.Body).FontSize(11.5).TextColor(t.Muted).Wrap()

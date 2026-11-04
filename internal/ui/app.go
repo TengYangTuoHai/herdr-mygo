@@ -75,9 +75,11 @@ type App struct {
 	settingsPath  string
 	savedSettings string
 
-	mu       sync.Mutex
-	terms    map[string]*paneTerm
-	starting map[string]bool
+	mu          sync.Mutex
+	terms       map[string]*paneTerm
+	starting    map[string]bool
+	failedTerms map[string]bool // failed attachments wait until the pane is shown again
+	nextToastID uint64
 
 	focusPane string
 	overlay   string
@@ -131,6 +133,7 @@ func NewApp(s *herdr.Session, theme *Theme) *App {
 		settings:       defaultSettings(),
 		terms:          map[string]*paneTerm{},
 		starting:       map[string]bool{},
+		failedTerms:    map[string]bool{},
 		foldedMachines: map[string]bool{},
 	}
 }
@@ -1005,7 +1008,7 @@ func (a *App) terminalFor(p herdr.PaneInfo) *terminal.Terminal {
 		a.mu.Unlock()
 		return entry.term
 	}
-	if a.starting[key] {
+	if a.starting[key] || a.failedTerms[key] {
 		a.mu.Unlock()
 		return nil
 	}
@@ -1021,10 +1024,7 @@ func (a *App) startTerminal(key string, p herdr.PaneInfo) {
 	t := a.T
 	conn, err := a.S.Attach(p.Terminal, 80, 24, t.TerminalForeground, t.Background, t.Cursor, 8, 16)
 	if err != nil {
-		a.mu.Lock()
-		delete(a.starting, key)
-		a.mu.Unlock()
-		a.toast("Cannot show the terminal", err.Error(), "error")
+		a.terminalFailed(key, "Cannot show the terminal", err)
 		return
 	}
 	var term *terminal.Terminal
@@ -1044,10 +1044,7 @@ func (a *App) startTerminal(key string, p herdr.PaneInfo) {
 	})
 	if err != nil {
 		_ = conn.Close()
-		a.mu.Lock()
-		delete(a.starting, key)
-		a.mu.Unlock()
-		a.toast("Cannot start the terminal", err.Error(), "error")
+		a.terminalFailed(key, "Cannot start the terminal", err)
 		return
 	}
 	a.mu.Lock()
@@ -1061,6 +1058,16 @@ func (a *App) startTerminal(key string, p herdr.PaneInfo) {
 	}()
 }
 
+// terminalFailed reports a failed attachment once per visible pane. Redrawing
+// the warning or dismissing it must not immediately start another failing attach.
+func (a *App) terminalFailed(key, title string, err error) {
+	a.mu.Lock()
+	delete(a.starting, key)
+	a.failedTerms[key] = true
+	a.mu.Unlock()
+	a.toast(title, err.Error(), "error")
+}
+
 // collect detaches the views of panes that are no longer shown.
 func (a *App) collect() {
 	_, tab := a.S.Active()
@@ -1071,6 +1078,11 @@ func (a *App) collect() {
 		}
 	}
 	a.mu.Lock()
+	for key := range a.failedTerms {
+		if !live[key] {
+			delete(a.failedTerms, key)
+		}
+	}
 	var gone []*paneTerm
 	for key, entry := range a.terms {
 		if !live[key] {
