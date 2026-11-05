@@ -372,9 +372,15 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
 - Alerts follow agent status reports: Done and Needs you send system notifications
   for agents in another space, with optional sound. On macOS, run
   `go tool mygo dev` or the app from `go tool mygo build` for notifications;
-  the first alert asks for notification permission. Repeated reports and the
-  initial session snapshot stay quiet. Glass and Ping are built-in chimes;
-  either event can use a custom mono/stereo WAV file (up to 10 seconds and
+  the first alert asks for notification permission. Linux uses the desktop's
+  notification service through `notify-send` (install `libnotify-bin` on
+  Debian/Ubuntu or `libnotify` on Fedora/Arch), with a logged-in graphical
+  session. Linux packages include these dependencies. Windows 10/11 uses Windows
+  PowerShell and native WinRT toasts,
+  registered as Herdr for the current user; allow Herdr in Settings → System →
+  Notifications. Linux and Windows alerts also work with `go run .`.
+  Repeated reports and the initial session snapshot stay quiet. Glass and Ping
+  are built-in chimes; either event can use a custom mono/stereo WAV file (up to 10 seconds and
   10 MB), previewed from Settings. By agent mutes sound for a program while
   keeping its system notifications. Sound choices and per-agent mutes persist in
   `settings.json`; disabling Play a sound keeps notifications enabled.
@@ -430,6 +436,20 @@ SHOT_OVERLAY=palette SHOT_OUT=/tmp/palette.png go test ./internal/ui -run TestSh
 SHOT_PANEL=files SHOT_OUT=/tmp/files.png go test ./internal/ui -run TestShot
 SHOT_ACTION=pane.split:down SHOT_OUT=/tmp/split.png go test ./internal/ui -run TestShot
 ```
+
+The Linux and Windows notification command boundaries are covered by the alert
+unit tests. On each target desktop, the following opt-in check sends a real
+Done and Needs you notification; confirm both appear under Herdr, with literal
+Unicode/markup text and no system sound:
+
+```sh
+ALERTS_NATIVE_NOTIFICATIONS=1 go test ./internal/ui -run '^TestNativeDesktopNotifications$' -v
+```
+
+On Windows PowerShell, set `$env:ALERTS_NATIVE_NOTIFICATIONS='1'` first, then run
+that `go test` command. This requires a logged-in desktop with notification
+banners enabled; passing the command confirms service acceptance, while the
+visible banners must be checked on that desktop.
 
 ## Research
 
