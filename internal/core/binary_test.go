@@ -23,6 +23,9 @@ func TestResolveHC(t *testing.T) {
 		{"Windows installed core", "windows", "Herdr/Herdr.exe", "local/Programs/herdr-core/herdr-core.exe"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if runtime.GOOS == "windows" && tc.goos != "windows" {
+				t.Skip("Windows filesystems do not preserve Unix executable permissions")
+			}
 			root := t.TempDir()
 			candidate := filepath.Join(root, tc.candidate)
 			if err := os.MkdirAll(filepath.Dir(candidate), 0o755); err != nil {
@@ -46,11 +49,15 @@ func TestResolveHCPrefersBundleToPATH(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	bundled := filepath.Join(root, "bin", "hc")
+	name := "hc"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	bundled := filepath.Join(root, "bin", name)
 	if err := os.WriteFile(bundled, []byte("core"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	got, err := resolveHC(filepath.Join(root, "Herdr"), "", "", "linux", func(string) (string, error) {
+	got, err := resolveHC(filepath.Join(root, "Herdr"), "", "", runtime.GOOS, func(string) (string, error) {
 		t.Fatal("PATH was searched despite bundled hc")
 		return "", nil
 	})
@@ -60,6 +67,9 @@ func TestResolveHCPrefersBundleToPATH(t *testing.T) {
 }
 
 func TestResolveHCSkipsDirectoriesAndNonExecutableFiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows filesystems do not preserve Unix executable permissions")
+	}
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "bin", "hc"), 0o755); err != nil {
 		t.Fatal(err)

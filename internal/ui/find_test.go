@@ -199,6 +199,15 @@ func TestTerminalFindWaitsForAttachment(t *testing.T) {
 	}
 }
 
+func findShortcut(t *testing.T, tt *myui.Tester, action string) {
+	t.Helper()
+	mods, key, ok := parseBinding(KeyFor(action))
+	if !ok {
+		t.Fatalf("no shortcut for %s", action)
+	}
+	tt.Key(mods, key)
+}
+
 func TestPeekTerminalFindShortcuts(t *testing.T) {
 	f := newPaneFocusTest(t)
 	term := f.app.terms["p1|t1"].term
@@ -209,16 +218,16 @@ func TestPeekTerminalFindShortcuts(t *testing.T) {
 	tt := myui.NewTester(f.app.View, 1000, 600)
 	tt.SetFocused(true)
 	tt.Frame()
-	tt.Key(myui.Cmd, myui.KeyF)
+	findShortcut(t, tt, "terminal.find")
 	tt.Frame()
 	tt.Type("error")
 	waitForFind(t, tt, term, 4)
-	tt.Key(myui.Cmd, myui.KeyG)
+	findShortcut(t, tt, "terminal.find_next")
 	tt.Frame()
 	if !tt.HasText("2 of 4") {
 		t.Fatalf("next shortcut: %q", tt.Texts())
 	}
-	tt.Key(myui.Cmd|myui.Shift, myui.KeyG)
+	findShortcut(t, tt, "terminal.find_previous")
 	tt.Frame()
 	if !tt.HasText("1 of 4") {
 		t.Fatalf("previous shortcut: %q", tt.Texts())
@@ -231,10 +240,11 @@ func TestPeekTerminalFindShortcuts(t *testing.T) {
 	}
 	tt.Type("shell")
 	tt.Frame()
+	f.conns[0].flushInput(t, term)
 	if f.conns[0].typed() != "shell" {
 		t.Fatalf("peek did not regain keyboard: %q", f.conns[0].typed())
 	}
-	tt.Key(myui.Cmd, myui.KeyG)
+	findShortcut(t, tt, "terminal.find_next")
 	waitForFind(t, tt, term, 4)
 	if f.app.find.query != "error" {
 		t.Fatal("Find Next did not reopen the last query")

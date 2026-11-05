@@ -97,8 +97,12 @@ func TestPeekFirstSnapshotFitsPopup(t *testing.T) {
 			show = true
 			tt.Frame()
 			size := peekReceive(t, opened)
-			if size[0] <= 80 || size[1] < 24 {
-				t.Fatalf("initial grid = %v, want the popup's larger grid", size)
+			// Zoom enlarges cells in the same physical popup, so fewer rows fit.
+			if size[0] <= 80 || size[1] < int(24/tc.zoom) {
+				t.Fatalf("initial grid = %v, want the popup's larger grid at zoom %g", size, tc.zoom)
+			}
+			if cols, rows := term.Size(); cols != size[0] || rows != size[1] {
+				t.Fatalf("initial grid = %v, rendered terminal = %dx%d", size, cols, rows)
 			}
 			deadline := time.Now().Add(3 * time.Second)
 			for !strings.Contains(term.Text(), "END") {

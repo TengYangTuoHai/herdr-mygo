@@ -104,6 +104,8 @@ func (f *paneFocusTest) typeInto(t *testing.T, i int, text string) {
 		if conn == nil {
 			continue
 		}
+		p := f.panes[j]
+		conn.flushInput(t, f.app.terms[p.Pane+"|"+p.Terminal].term)
 		got := strings.TrimPrefix(conn.typed(), before[j])
 		want := ""
 		if i == j {

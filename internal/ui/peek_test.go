@@ -2,6 +2,7 @@ package ui
 
 import (
 	"io"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -173,6 +174,28 @@ func (c *peekConn) Close() error {
 	return nil
 }
 
+func (c *peekConn) flushInput(t *testing.T, term *terminal.Terminal) {
+	t.Helper()
+	// Send shares the keyboard's input queue, so the barrier also proves
+	// that input expected to stay out of this terminal has been processed.
+	const barrier = "\x00input-drained\x00"
+	term.Send([]byte(barrier))
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		c.mu.Lock()
+		if strings.HasSuffix(string(c.written), barrier) {
+			c.written = c.written[:len(c.written)-len(barrier)]
+			c.mu.Unlock()
+			return
+		}
+		c.mu.Unlock()
+		if time.Now().After(deadline) {
+			t.Fatal("terminal input queue did not drain")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
 func (c *peekConn) typed() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -209,6 +232,7 @@ func TestPeekTakesTheKeysOfTheTerminalItShows(t *testing.T) {
 	tt.Key(myui.Ctrl, myui.KeyC)
 	tt.Key(0, myui.KeyLeft)
 	tt.Frame()
+	conn.flushInput(t, term)
 	if got, want := conn.typed(), "\x1bhi\x03\x1b[D"; got != want {
 		t.Fatalf("the peek took %q of what was typed, want %q", got, want)
 	}
