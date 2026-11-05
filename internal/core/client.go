@@ -269,6 +269,10 @@ func (c *Client) lost() {
 	}
 }
 
+// Binary returns the executable used for this connection, so programs started
+// through an existing core need not find hc on that core's inherited PATH.
+func (c *Client) Binary() string { return c.cmd.Path }
+
 // Done closes when the connection to the core is gone.
 func (c *Client) Done() <-chan struct{} { return c.done }
 

@@ -122,6 +122,12 @@ func TestMachineInstallWithCore(t *testing.T) {
 			}
 		}
 	})
+	// A core started by a desktop launcher may not have hc on its PATH.
+	start := exec.Command(bin, "server", "start")
+	start.Env = append(os.Environ(), "PATH=/usr/bin:/bin")
+	if out, err := start.CombinedOutput(); err != nil {
+		t.Fatalf("start core with a desktop PATH: %v: %s", err, out)
+	}
 	s, err := herdr.Connect(bin, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -197,8 +203,16 @@ func TestMachineInstallWithCore(t *testing.T) {
 	tt.Type("y")
 	tt.Key(0, myui.KeyEnter)
 	deadline = time.Now().Add(4 * time.Second)
-	for s.MachineNamed("windows") == nil && time.Now().Before(deadline) {
+	for time.Now().Before(deadline) {
 		tt.Frame()
+		if m := s.MachineNamed("windows"); m != nil {
+			if m.Connected() {
+				break
+			}
+			// The add callback has refreshed the list; a newly registered
+			// machine may still be finishing its first background connection.
+			s.RefreshMachines()
+		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	tt.Frame()
@@ -211,6 +225,9 @@ func TestMachineInstallWithCore(t *testing.T) {
 	}
 	if dir := os.Getenv("MACHINE_SHOT_DIR"); dir != "" {
 		writeFullscreenShot(t, tt, filepath.Join(dir, "core-added.png"))
+	}
+	if _, err := s.AddMachineInTerminal("windows"); err != nil {
+		t.Fatalf("start the add command when the daemon PATH has no hc: %v", err)
 	}
 }
 
