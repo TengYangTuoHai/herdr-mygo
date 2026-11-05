@@ -2,6 +2,7 @@ package herdr
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -189,6 +190,80 @@ func TestFinishedTerminalIsRemovedFromAgentsAfterSnapshot(t *testing.T) {
 	s.mu.Unlock()
 	if len(list) != 0 {
 		t.Fatalf("finished terminal still listed as agent: %+v", list)
+	}
+}
+
+// A shell stays live after its agent exits, and the core keeps the last OSC
+// report. The foreground event and a fresh snapshot must both hide that row.
+func TestExitedDeepSeekIsRemovedFromAgents(t *testing.T) {
+	const running = `{"address":"t10","state":"live","argv":["/bin/zsh","-l"],"pid":100,"foreground":{"pid":101,"name":"node","argv":["node","/opt/homebrew/bin/dsh-tui"]},"status":{"app":"dsh-tui","state":"idle","title":"Agent session"}}`
+	const shell = `{"pid":100,"name":"zsh","argv":["/bin/zsh","-l"]}`
+	for _, snapshot := range []bool{false, true} {
+		t.Run(fmt.Sprintf("snapshot=%v", snapshot), func(t *testing.T) {
+			s := sessionWithOnePane(running)
+			s.activeTab = map[string]string{"sp1": "tb1"}
+			s.reindex()
+			if agents := s.Agents(); len(agents) != 1 || agents[0].Program.Key != "deepseek" {
+				t.Fatalf("running DeepSeek: %+v", agents)
+			}
+			if snapshot {
+				var term map[string]json.RawMessage
+				_ = json.Unmarshal([]byte(running), &term)
+				term["foreground"] = json.RawMessage(shell)
+				raw, _ := json.Marshal(map[string]any{"terminals": []any{term}})
+				s.applySnapshot(raw)
+			} else {
+				if !s.applyEvent("foreground", "t10", json.RawMessage(shell)) {
+					t.Fatal("foreground event was ignored")
+				}
+			}
+			s.reindex()
+			if agents := s.Agents(); len(agents) != 0 {
+				t.Fatalf("exited DeepSeek still listed: %+v", agents)
+			}
+			term := s.terminals["t10"]
+			if !term.Live() || term.Status == nil {
+				t.Fatal("must retain the live shell and the core's raw report")
+			}
+			if p := Program(term); !p.Shell {
+				t.Fatalf("returned shell still uses the agent's program: %+v", p)
+			}
+			if apps := runningApps(term); len(apps) != 0 {
+				t.Fatalf("returned shell still names an agent: %v", apps)
+			}
+			// Starting another agent must make reports visible again.
+			s.applyEvent("foreground", "t10", json.RawMessage(`{"pid":102,"name":"node","argv":["node","/opt/homebrew/bin/dsh-tui"]}`))
+			s.applyEvent("status", "t10", json.RawMessage(`{"status":{"app":"dsh-tui","state":"working"}}`))
+			s.reindex()
+			if agents := s.Agents(); len(agents) != 1 || agents[0].Status != "working" {
+				t.Fatalf("restarted DeepSeek: %+v", agents)
+			}
+		})
+	}
+}
+
+// Do not infer an exit from missing process details, or a different shell
+// process that may be running a script on the agent's behalf.
+func TestStatusStaysVisibleWithoutAnIdleRootShell(t *testing.T) {
+	pid := 100
+	for _, tc := range []struct {
+		name string
+		pid  *int
+		fg   *Foreground
+	}{
+		{"no foreground yet", &pid, nil},
+		{"unknown root", nil, &Foreground{Pid: 100, Name: "zsh", Argv: []string{"zsh"}}},
+		{"unknown foreground", &pid, &Foreground{Pid: 100}},
+		{"direct agent", &pid, &Foreground{Pid: 100, Name: "node", Argv: []string{"node", "dsh-tui"}}},
+		{"child shell", &pid, &Foreground{Pid: 101, Name: "bash", Argv: []string{"bash"}}},
+		{"shell command", &pid, &Foreground{Pid: 100, Name: "bash", Argv: []string{"bash", "-c", "dsh-tui"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			term := &Terminal{State: "live", Pid: tc.pid, Foreground: tc.fg, Status: &Status{App: "dsh-tui", State: "done"}}
+			if term.Word() != "done" || Program(term).Key != "deepseek" {
+				t.Fatalf("live report hidden: %+v", term)
+			}
+		})
 	}
 }
 

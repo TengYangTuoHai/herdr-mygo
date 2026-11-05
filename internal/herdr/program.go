@@ -144,7 +144,7 @@ func Program(t *Terminal) ProgramInfo {
 		return ProgramInfo{Key: "shell", Name: "shell", Icon: "shell", Tint: true, Shell: true}
 	}
 	// The program's own report wins, even when the table has no logo for it.
-	if app := t.Status.app(); app != "" {
+	if app := t.activeStatus().app(); app != "" {
 		if key, e, ok := match(app); ok {
 			return info(key, e)
 		}
@@ -220,7 +220,7 @@ func runningApps(t *Terminal) []string {
 		}
 		out = append(out, name)
 	}
-	add(t.Status.app())
+	add(t.activeStatus().app())
 	if fg := t.Foreground; fg != nil {
 		add(fg.Name)
 		if len(fg.Argv) > 0 {
