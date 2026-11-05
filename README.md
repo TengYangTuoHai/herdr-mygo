@@ -70,7 +70,8 @@ go tool mygo build \
 The first run downloads MyGo's `libghostty-vt` (the terminal emulator library
 the terminal plugin uses, the same Ghostty VT the original app uses).
 
-To build macOS, Windows and Linux for both arm64 and amd64 in one run:
+To build all five supported targets (macOS and Linux for arm64 and amd64,
+Windows for amd64) in one run:
 
 ```sh
 go run ./cmd/prepare-hc
@@ -80,13 +81,13 @@ go run ./cmd/prepare-hc
 Run with Bash (on Windows, use Git Bash or WSL). The script works from any
 working directory and writes each target to `build/<os>-<arch>/`, with macOS
 named `darwin`. MyGo includes the required native libraries and creates these
-packages for both arm64 and amd64:
+packages:
 
 | Target | Packages | Build host requirements |
 |---|---|---|
-| macOS | `.app` bundle and `herdr-0.1.0-<arch>.dmg` | DMGs and signing require macOS; other hosts still build the `.app` |
-| Windows | `.exe` and `herdr-setup-0.1.0-<arch>.exe` installer | NSIS (`makensis`); MyGo downloads it automatically on Windows if missing |
-| Linux | `.deb`, `.tar.gz`, a separate `install.sh`, and `PKGBUILD` | No extra packaging tools; building an Arch package from `PKGBUILD` requires `makepkg` on Arch Linux |
+| macOS (arm64, amd64) | `.app` bundle and `herdr-0.1.0-<arch>.dmg` | DMGs and signing require macOS; other hosts still build the `.app` |
+| Windows (amd64) | `.exe` and `herdr-setup-0.1.0-amd64.exe` installer | NSIS (`makensis`); MyGo downloads it automatically on Windows if missing |
+| Linux (arm64, amd64) | `.deb`, `.tar.gz`, a separate `install.sh`, and `PKGBUILD` | No extra packaging tools; building an Arch package from `PKGBUILD` requires `makepkg` on Arch Linux |
 
 On macOS or Linux, install NSIS to also create Windows installers (for example,
 `brew install nsis` on macOS or `sudo apt install nsis` on Debian/Ubuntu).
@@ -97,9 +98,9 @@ configuring those in MyGo.
 
 These are cross-compiled builds; running each app requires its target OS. The
 script builds the UI and packages; stage the matching core resources first for
-a self-contained app. The staging command above covers five targets. Windows
-arm64 still needs a separately supplied compatible core, since upstream does
-not publish one. Without staged resources, the app needs an installed `hc`.
+a self-contained app. The staging command and build script above cover the
+same five targets. Windows arm64 packaging is not supported. Without staged
+resources, the app needs an installed `hc`.
 Additional MyGo build flags can be passed through, for example
 `./scripts/build-all.sh -o build/release` or
 `./scripts/build-all.sh -skip-dmg -skip-installer` to omit DMG and Windows
