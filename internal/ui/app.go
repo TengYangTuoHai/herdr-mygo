@@ -24,7 +24,7 @@ const (
 	sidebarMinWidth float32 = 160
 	sidebarMaxWidth float32 = 480
 	// sidebarFooterHeight is the height of the sidebar's footer.
-	sidebarFooterHeight float32 = 69
+	sidebarFooterHeight float32 = 41
 	// paneGap is the room between two panes, where their divider sits;
 	// paneMinWidth and paneMinHeight are the smallest a pane is dragged to.
 	paneGap       float32 = 8
@@ -429,14 +429,13 @@ func (a *App) toggleSidebar() {
 	a.Repaint()
 }
 
-// footer is Settings and Add machine.
+// footer is Settings.
 func (a *App) footer(c *ui.Context) {
 	t := a.T
 	ui.Column(c).Height(sidebarFooterHeight).FillWidth().Background(t.Chrome).Children(func() {
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		ui.Column(c).Grow(1).FillWidth().Padding(4, 8, 8, 8).Children(func() {
 			a.footerRow(c, "settings", a.tr("Settings"), false, func() { a.OpenOverlay("settings") })
-			a.footerRow(c, "plus", a.tr("Add machine"), true, func() { a.OpenOverlay("machine-add") })
 		})
 	})
 }

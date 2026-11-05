@@ -320,7 +320,7 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
 - Spaces, tabs and splits stored in the core's shared document, with labels
   (`herdr.space`, `herdr.tab`) so terminals started outside the app join them
 - **SSH machines**: add one from `~/.ssh/config` or by typing how ssh reaches
-  it (Add machine in the sidebar footer, or Settings → Machines); each machine
+  it (Settings → Machines); each machine
   keeps its own copy of the document (`doc.get/set … on`), its spaces are
   grouped under its header in the sidebar, and its terminals run, attach,
   split, resize and report agents through the same core, addressed
