@@ -1,0 +1,110 @@
+name: Build packages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: darwin
+            runner: macos-latest
+            platforms: darwin/arm64,darwin/amd64
+          - os: windows
+            runner: windows-latest
+            platforms: windows/amd64
+          - os: linux
+            runner: ubuntu-latest
+            platforms: linux/arm64,linux/amd64
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Check release version
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node <<'JS'
+          const version = require('./mygo.json').version;
+          if (process.env.RELEASE_TAG !== `v${version}`) {
+            throw new Error(`Release tag must be v${version}, matching mygo.json`);
+          }
+          JS
+
+      - name: Build packages with bundled hc
+        env:
+          PLATFORMS: ${{ matrix.platforms }}
+        run: go tool mygo build -platform "$PLATFORMS"
+
+      # Archive the complete directories, including hc and native libraries.
+      # A tar archive preserves executable permissions inside Actions artifacts.
+      - name: Archive complete target directories
+        env:
+          TARGET_OS: ${{ matrix.os }}
+        run: |
+          mkdir -p artifacts
+          for directory in build/"$TARGET_OS"-*; do
+            target=$(basename "$directory")
+            tar -czf "artifacts/herdr-$target.tar.gz" -C build "$target"
+          done
+
+      - name: Upload packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: herdr-${{ matrix.os }}
+          path: artifacts/herdr-*.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  release:
+    name: Publish tagged release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: herdr-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish complete packages
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/herdr-darwin-arm64.tar.gz
+            artifacts/herdr-darwin-amd64.tar.gz
+            artifacts/herdr-windows-amd64.tar.gz
+            artifacts/herdr-linux-arm64.tar.gz
+            artifacts/herdr-linux-amd64.tar.gz
