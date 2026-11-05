@@ -345,6 +345,64 @@ func TestSubAgentRowIsIndentedUnderItsParent(t *testing.T) {
 	}
 }
 
+// TestPeekSelectsItsSubAgentRow keeps the row selected while its worker is
+// shown, moves the selection with the peek, and clears it when the peek closes.
+func TestPeekSelectsItsSubAgentRow(t *testing.T) {
+	RegisterFonts()
+	for _, theme := range []string{"graphite", "paper"} {
+		t.Run(theme, func(t *testing.T) {
+			app := NewApp(&herdr.Session{}, ThemeByName(theme))
+			parent := &herdr.Agent{SpaceName: "parent", Focused: true}
+			rows := []subRow{
+				{Term: worker("t2", "t1", "first worker"), Lines: []string{"├"}},
+				{Term: worker("remote/t2", "t1", "remote worker"), Lines: []string{"└"}},
+			}
+			tt := myui.NewTester(func(c *myui.Context) {
+				myui.Column(c).Width(268).PaddingX(8).Gap(2).Background(app.T.Chrome).Children(func() {
+					app.agentRow(c, parent)
+					for _, sub := range rows {
+						app.subAgentRow(c, sub)
+					}
+				})
+			}, 400, 200)
+			tt.Frame()
+			pixel := func(y int) [4]uint32 {
+				r, g, b, a := tt.Image().At(12, y).RGBA()
+				return [4]uint32{r, g, b, a}
+			}
+			selected, plain := pixel(13), pixel(41)
+			if selected == plain {
+				t.Fatal("the focused parent has no distinct selection background")
+			}
+			check := func(wantFirst, wantRemote [4]uint32) {
+				t.Helper()
+				tt.Frame()
+				if got := pixel(41); got != wantFirst {
+					t.Errorf("first worker background = %v, want %v", got, wantFirst)
+				}
+				if got := pixel(69); got != wantRemote {
+					t.Errorf("remote worker background = %v, want %v", got, wantRemote)
+				}
+			}
+			check(plain, plain)
+			tt.Click("first worker")
+			check(selected, plain) // Selected also takes priority over hover.
+			tt.Move(350, 150)
+			check(selected, plain)
+			tt.Click("remote worker")
+			check(plain, selected)
+			tt.Move(350, 150)
+			check(plain, selected)
+			app.OpenOverlay("help")
+			check(plain, plain)
+			app.OpenOverlay("peek")
+			check(plain, selected)
+			app.CloseOverlay()
+			check(plain, plain)
+		})
+	}
+}
+
 // TestSubAgentRowPeeksAtItsWorker draws a worker's row: a click looks at the
 // worker over the tab, as Herdr's agents list does, and gives it no pane
 // before the peek's own keep asks for one.

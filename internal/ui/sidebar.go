@@ -421,7 +421,9 @@ func (a *App) subAgentRow(c *ui.Context, sub subRow) {
 	t := a.T
 	term := sub.Term
 	row := ui.Row(c).Height(26).FillWidth().Padding(0, 8, 0, 14).Radius(8).AlignItems(ui.Center)
-	if row.Hovered() {
+	if a.overlay == "peek" && a.peek.addr == term.Address {
+		row.Background(t.Selected)
+	} else if row.Hovered() {
 		row.Background(t.Hover)
 	}
 	row.Cursor(ui.CursorPointer)
