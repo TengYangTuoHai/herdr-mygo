@@ -87,6 +87,7 @@ type PromptState struct {
 // keeps between launches.
 type settingsState struct {
 	Section       string
+	Language      string
 	Appearance    int
 	Theme         string // legacy single theme; used until an appearance has its own choice
 	LightTheme    string
@@ -135,6 +136,7 @@ type settingsState struct {
 func defaultSettings() settingsState {
 	return settingsState{
 		Section:         "look",
+		Language:        "system",
 		Theme:           "graphite",
 		Accent:          "",
 		InterfaceFont:   "Geist",
@@ -196,7 +198,7 @@ func (a *App) Run(action string) {
 		}
 	case "tab.rename":
 		if tab != nil {
-			a.Prompt("Rename tab", "Leave empty for its number", tab.Name, "tab.rename", tab.ID)
+			a.Prompt(a.tr("Rename tab"), a.tr("Leave empty for its number"), tab.Name, "tab.rename", tab.ID)
 		}
 	case "space.new":
 		a.newSpace()
@@ -214,7 +216,7 @@ func (a *App) Run(action string) {
 		}
 	case "space.rename":
 		if sp != nil {
-			a.Prompt("Rename space", "Leave empty for where its first terminal is", sp.Name, "space.rename", sp.ID)
+			a.Prompt(a.tr("Rename space"), a.tr("Leave empty for where its first terminal is"), sp.Name, "space.rename", sp.ID)
 		}
 	case "pane.split":
 		a.split(value)

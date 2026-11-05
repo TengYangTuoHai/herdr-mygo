@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -14,6 +15,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"herdr-mygo/internal/herdr"
+	"herdr-mygo/internal/i18n"
 )
 
 const (
@@ -40,6 +42,10 @@ type App struct {
 	S   *herdr.Session
 	T   *Theme
 	Win *mygo.Window
+
+	localizer           atomic.Pointer[i18n.Localizer]
+	systemLanguage      string
+	localizationStarted bool
 
 	W, H float32
 
@@ -168,7 +174,7 @@ func (a *App) View(c *ui.Context) {
 		ui.Box(c).Fill().Background(t.Canvas).Center().Children(func() {
 			ui.Column(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, "Herdr").FontSize(a.fontSize(18)).FontWeight(600).TextColor(t.Foreground)
-				msg := "Connecting to herdr-core…"
+				msg := a.tr("Connecting to herdr-core…")
 				if a.err != nil {
 					msg = a.err.Error()
 				}
@@ -339,8 +345,8 @@ func (a *App) brand(c *ui.Context) {
 			a.logo(c, 20)
 			ui.Text(c, "Herdr").FontSize(a.fontSize(13.5)).FontWeight(600).TextColor(t.Foreground)
 		})
-		a.iconButton(c, "search", 26, "Search", func() { a.OpenOverlay("picker") })
-		a.iconButton(c, "sidebar", 26, "Hide sidebar", a.toggleSidebar)
+		a.iconButton(c, "search", 26, a.tr("Search"), func() { a.OpenOverlay("picker") })
+		a.iconButton(c, "sidebar", 26, a.tr("Hide sidebar"), a.toggleSidebar)
 	})
 }
 
@@ -429,8 +435,8 @@ func (a *App) footer(c *ui.Context) {
 	ui.Column(c).Height(sidebarFooterHeight).FillWidth().Background(t.Chrome).Children(func() {
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		ui.Column(c).Grow(1).FillWidth().Padding(4, 8, 8, 8).Children(func() {
-			a.footerRow(c, "settings", "Settings", false, func() { a.OpenOverlay("settings") })
-			a.footerRow(c, "plus", "Add machine", true, func() { a.OpenOverlay("machine-add") })
+			a.footerRow(c, "settings", a.tr("Settings"), false, func() { a.OpenOverlay("settings") })
+			a.footerRow(c, "plus", a.tr("Add machine"), true, func() { a.OpenOverlay("machine-add") })
 		})
 	})
 }
@@ -493,7 +499,7 @@ func (a *App) tabsBar(c *ui.Context) {
 	ui.Column(c).Height(max(float32(42), bar.Height+1)).FillWidth().Children(func() {
 		ui.Row(c).Grow(1).FillWidth().Background(t.Chrome).Padding(0, bar.Right+10, 0, left).Gap(3).AlignItems(ui.Center).DragWindow().Children(func() {
 			if !a.SidebarOpen {
-				a.iconButton(c, "sidebar", 26, "Show sidebar", a.toggleSidebar)
+				a.iconButton(c, "sidebar", 26, a.tr("Show sidebar"), a.toggleSidebar)
 			}
 			if !a.spaceEmpty() {
 				a.tabList(c)
@@ -501,8 +507,8 @@ func (a *App) tabsBar(c *ui.Context) {
 				ui.Spacer(c)
 			}
 			a.newMenuButton(c)
-			a.panelButton(c, "files", "Files")
-			a.panelButton(c, "changes", "Changes")
+			a.panelButton(c, "files", a.tr("Files"))
+			a.panelButton(c, "changes", a.tr("Changes"))
 		})
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 	})
@@ -550,7 +556,7 @@ func (a *App) tab(c *ui.Context, tab *herdr.Tab, active bool) {
 	panes := a.S.Panes(tab.ID)
 	name := herdr.TabName(tab, tab.Index)
 	if strings.HasPrefix(name, "tb") && len(name) > 12 {
-		name = "Terminal"
+		name = a.tr("Terminal")
 	}
 	status := ""
 	zoomed := false
@@ -599,16 +605,16 @@ func (a *App) tab(c *ui.Context, tab *herdr.Tab, active bool) {
 		a.S.SelectTab(tab.ID)
 	}
 	if row.DoubleClicked() {
-		a.Prompt("Rename tab", "Leave empty for its number", tab.Name, "tab.rename", tab.ID)
+		a.Prompt(a.tr("Rename tab"), a.tr("Leave empty for its number"), tab.Name, "tab.rename", tab.ID)
 	}
 	if row.RightClicked() {
 		x, y, _ := row.PointerPosition()
 		b := row.Bounds()
 		id, spaceID := tab.ID, a.S.ActiveSpaceID()
 		a.openMenuAt(b.X+x, b.Y+y, []MenuItem{
-			{Label: "Rename", Icon: "square-pen", Do: func() { a.Prompt("Rename tab", "Leave empty for its number", tab.Name, "tab.rename", id) }},
-			{Label: "New tab", Icon: "plus", Do: func() { a.newTab() }},
-			{Label: "Close", Icon: "close", Do: func() { a.requestClose("tab.close", id) }},
+			{Label: a.tr("Rename"), Icon: "square-pen", Do: func() { a.Prompt(a.tr("Rename tab"), a.tr("Leave empty for its number"), tab.Name, "tab.rename", id) }},
+			{Label: a.tr("New tab"), Icon: "plus", Do: func() { a.newTab() }},
+			{Label: a.tr("Close"), Icon: "close", Do: func() { a.requestClose("tab.close", id) }},
 		})
 		_ = spaceID
 	}
@@ -648,12 +654,12 @@ func (a *App) newTab() {
 		if a.spaceEmpty() {
 			_, _, err := a.S.NewSpace("", "", "", nil)
 			if err != nil {
-				a.toast("Cannot start a terminal", err.Error(), "error")
+				a.toast(a.tr("Cannot start a terminal"), err.Error(), "error")
 			}
 			return
 		}
 		if _, err := a.S.NewTab("", "", nil); err != nil {
-			a.toast("Cannot start a terminal", err.Error(), "error")
+			a.toast(a.tr("Cannot start a terminal"), err.Error(), "error")
 		}
 	}()
 }
@@ -947,7 +953,7 @@ func (a *App) paneHeader(c *ui.Context, p herdr.PaneInfo) {
 			a.spinner(c, 12, t.Working)
 		case "blocked":
 			ui.Box(c).Height(18).PaddingX(6).Radius(5).Background(Alpha(t.Blocked, 0.15)).Center().Children(func() {
-				ui.Text(c, "Needs you").FontSize(a.fontSize(10.5)).FontWeight(600).TextColor(t.Blocked)
+				ui.Text(c, a.tr("Needs you")).FontSize(a.fontSize(10.5)).FontWeight(600).TextColor(t.Blocked)
 			})
 		case "done":
 			ui.Box(c).Size(7, 7).Radius(4).Background(t.Done)
@@ -971,14 +977,14 @@ func (a *App) paneHeader(c *ui.Context, p herdr.PaneInfo) {
 		b := row.Bounds()
 		pane := p
 		a.openMenuAt(b.X+x, b.Y+y, []MenuItem{
-			{Label: "Find in terminal", Icon: "search", Do: func() {
+			{Label: a.tr("Find in terminal"), Icon: "search", Do: func() {
 				a.S.FocusPane(pane.Pane)
 				a.openFindFor(pane.Pane+"|"+pane.Terminal, a.terminalFor(pane))
 			}},
-			{Label: "Split right", Icon: "split-right", Do: func() { a.splitPane(pane.Pane, "right") }},
-			{Label: "Split down", Icon: "split-down", Do: func() { a.splitPane(pane.Pane, "down") }},
-			{Label: "Zoom", Icon: "zoom", Do: func() { a.S.ZoomPane(pane.Pane) }},
-			{Label: "Close pane", Icon: "close", Do: func() { a.requestClose("pane.close", pane.Pane) }},
+			{Label: a.tr("Split right"), Icon: "split-right", Do: func() { a.splitPane(pane.Pane, "right") }},
+			{Label: a.tr("Split down"), Icon: "split-down", Do: func() { a.splitPane(pane.Pane, "down") }},
+			{Label: a.tr("Zoom"), Icon: "zoom", Do: func() { a.S.ZoomPane(pane.Pane) }},
+			{Label: a.tr("Close pane"), Icon: "close", Do: func() { a.requestClose("pane.close", pane.Pane) }},
 		})
 	}
 }
@@ -1011,7 +1017,7 @@ func (a *App) splitPane(pane, direction string) {
 func (a *App) split(direction string) {
 	go func() {
 		if _, err := a.S.Split(direction, nil); err != nil {
-			a.toast("Cannot split the pane", err.Error(), "error")
+			a.toast(a.tr("Cannot split the pane"), err.Error(), "error")
 		}
 	}()
 }
@@ -1038,14 +1044,14 @@ func (a *App) terminalView(c *ui.Context, p herdr.PaneInfo) {
 		b := view.Bounds()
 		pane := p
 		a.openMenuAt(b.X+x, b.Y+y, []MenuItem{
-			{Label: "Find in terminal", Icon: "search", Do: func() {
+			{Label: a.tr("Find in terminal"), Icon: "search", Do: func() {
 				a.S.FocusPane(pane.Pane)
 				a.openFindFor(key, term)
 			}},
-			{Label: "Split right", Icon: "split-right", Do: func() { a.splitPane(pane.Pane, "right") }},
-			{Label: "Split down", Icon: "split-down", Do: func() { a.splitPane(pane.Pane, "down") }},
-			{Label: "Zoom", Icon: "zoom", Do: func() { a.S.ZoomPane(pane.Pane) }},
-			{Label: "Close pane", Icon: "close", Do: func() { a.requestClose("pane.close", pane.Pane) }},
+			{Label: a.tr("Split right"), Icon: "split-right", Do: func() { a.splitPane(pane.Pane, "right") }},
+			{Label: a.tr("Split down"), Icon: "split-down", Do: func() { a.splitPane(pane.Pane, "down") }},
+			{Label: a.tr("Zoom"), Icon: "zoom", Do: func() { a.S.ZoomPane(pane.Pane) }},
+			{Label: a.tr("Close pane"), Icon: "close", Do: func() { a.requestClose("pane.close", pane.Pane) }},
 		})
 	}
 	a.findBar(c, key, term)
@@ -1082,7 +1088,7 @@ func (a *App) startTerminal(key string, p herdr.PaneInfo) {
 	conn := newPeekConnection(func(cols, rows, cellW, cellH int) (peekStream, error) {
 		attached, err := a.S.Attach(p.Terminal, cols, rows, t.TerminalForeground, t.Background, t.Cursor, cellW, cellH)
 		if err != nil {
-			a.terminalFailed(key, "Cannot show the terminal", err)
+			a.terminalFailed(key, a.tr("Cannot show the terminal"), err)
 			return nil, err
 		}
 		return attached, nil
@@ -1101,7 +1107,7 @@ func (a *App) startTerminal(key string, p herdr.PaneInfo) {
 	term, err := terminal.New(opts)
 	if err != nil {
 		_ = conn.Close()
-		a.terminalFailed(key, "Cannot start the terminal", err)
+		a.terminalFailed(key, a.tr("Cannot start the terminal"), err)
 		return
 	}
 	a.mu.Lock()
@@ -1316,7 +1322,7 @@ func (a *App) statusBar(c *ui.Context) {
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		row := ui.Row(c).Grow(1).FillWidth().Background(t.Chrome).PaddingX(14).Gap(16).AlignItems(ui.Center)
 		row.Children(func() {
-			icon, machine := "monitor", "This computer"
+			icon, machine := "monitor", a.tr("This computer")
 			if sp, _ := a.S.Active(); sp != nil && sp.Machine != nil {
 				icon, machine = "server", *sp.Machine
 			}
@@ -1333,13 +1339,13 @@ func (a *App) statusBar(c *ui.Context) {
 			}
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				ui.Box(c).Size(6, 6).Radius(3).Background(t.Dim)
-				ui.Text(c, fmt.Sprintf("%d agents", len(agents))).FontSize(a.fontSize(11.8)).TextColor(t.Muted)
+				ui.Text(c, a.tr("%d agents", len(agents))).FontSize(a.fontSize(11.8)).TextColor(t.Muted)
 				if needs > 0 {
-					ui.Text(c, fmt.Sprintf("· %d needs you", needs)).FontSize(a.fontSize(11.8)).TextColor(t.Blocked)
+					ui.Text(c, a.tr("· %d needs you", needs)).FontSize(a.fontSize(11.8)).TextColor(t.Blocked)
 				}
 			})
 			ui.Spacer(c)
-			hint := ui.Text(c, paletteHint()).FontSize(a.fontSize(11.8)).TextColor(t.Dim)
+			hint := ui.Text(c, a.paletteHint()).FontSize(a.fontSize(11.8)).TextColor(t.Dim)
 			if hint.Clicked() {
 				a.OpenOverlay("palette")
 			}
@@ -1361,8 +1367,8 @@ func (a *App) emptyWork(c *ui.Context) {
 	ui.Box(c).Fill().Center().Children(func() {
 		ui.Column(c).Gap(10).AlignItems(ui.Center).Children(func() {
 			a.logo(c, 40)
-			ui.Text(c, "No spaces yet").FontSize(a.fontSize(15)).FontWeight(600).TextColor(t.Foreground)
-			ui.Text(c, "Press ⌘N for a new space, or use the sidebar.").FontSize(a.fontSize(12.5)).TextColor(t.Dim)
+			ui.Text(c, a.tr("No spaces yet")).FontSize(a.fontSize(15)).FontWeight(600).TextColor(t.Foreground)
+			ui.Text(c, a.tr("Press ⌘N for a new space, or use the sidebar.")).FontSize(a.fontSize(12.5)).TextColor(t.Dim)
 		})
 	})
 }
@@ -1386,11 +1392,11 @@ func (a *App) Fail(err error) {
 }
 
 // paletteHint is the bottom right's live hint for the command palette.
-func paletteHint() string {
+func (a *App) paletteHint() string {
 	if k := prettyKeys(KeyFor("app.palette")); k != "" {
-		return k + "  commands"
+		return a.tr("%s  commands", k)
 	}
-	return "commands"
+	return a.tr("commands")
 }
 
 // resizeHandle drags the sidebar's edge, as Herdr's divider does. The edge

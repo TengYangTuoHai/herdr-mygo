@@ -263,6 +263,31 @@ also derives a version from the release tag, writes it into the package config,
 and passes it to the app. Herdr keeps its existing MyGo packaging workflow and
 adds automatic development releases alongside official tagged releases.
 
+## Languages
+
+The interface follows the system’s preferred languages by default. English,
+Chinese (Simplified and Traditional) and Japanese are supported; if none of the
+preferred languages is supported, it uses English. Settings → Look → Language
+can keep English, 中文 (Simplified Chinese) or 日本語 instead, or return to System.
+The choice applies immediately and is saved as `language` in `settings.json`.
+Menus, native controls and dialogs use the same language as the interface.
+Terminal output, file contents, paths and user-assigned names retain their text.
+
+Messages live in standard ARB/ICU JSON catalogs in `internal/i18n/locales`, with
+English as the source and fallback. MyGo generates and registers their Go
+accessors, including its own control translations. After editing catalogs, run:
+
+```sh
+go tool mygo generate
+go tool mygo i18n check
+go test ./...
+```
+
+Commit `catalog_gen.go` with catalog changes so plain Go builds work too.
+`internal/i18n/messages.go` maps the UI’s English source strings to stable catalog
+keys; ICU placeholders and plural forms let translations order arguments and
+counts independently.
+
 ## What is here
 
 | Files | What it does |

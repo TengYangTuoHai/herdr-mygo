@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -110,20 +109,20 @@ func (a *App) closeConfirmOverlay(c *ui.Context) {
 	width := min(float32(440), a.W-32)
 	panel := a.card(c, width, 210).Absolute().Top((a.H - 210) / 2).Left((a.W - width) / 2).Padding(20).Gap(12)
 	panel.Children(func() {
-		ui.Text(c, "Close "+st.kind+"?").FontSize(a.fontSize(15)).FontWeight(600).TextColor(t.Foreground)
-		detail := "A program is still running in this terminal. Closing will end it."
+		ui.Text(c, a.tr("Close %s?", a.tr(st.kind))).FontSize(a.fontSize(15)).FontWeight(600).TextColor(t.Foreground)
+		detail := a.tr("A program is still running in this terminal. Closing will end it.")
 		if len(st.names) > 1 {
-			detail = fmt.Sprintf("Programs are still running in %d terminals. Closing this %s will end them.", len(st.names), st.kind)
+			detail = a.tr("Programs are still running in %d terminals. Closing this %s will end them.", len(st.names), a.tr(st.kind))
 		}
 		ui.Text(c, detail).FontSize(a.fontSize(12.5)).TextColor(t.Muted).Wrap()
 		ui.Text(c, strings.Join(st.names, ", ")).FontSize(a.fontSize(12)).TextColor(t.Dim).MaxWidth(width - 40).Ellipsis("…")
 		ui.Spacer(c)
 		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-			cancel := ui.Button(c, "Cancel").AutoFocus()
+			cancel := ui.Button(c, a.tr("Cancel")).AutoFocus()
 			if cancel.Clicked() {
 				a.CloseOverlay()
 			}
-			close := ui.PrimaryButton(c, "Close "+st.kind)
+			close := ui.PrimaryButton(c, a.tr("Close %s", a.tr(st.kind)))
 			if close.Clicked() {
 				a.confirmClose()
 			}

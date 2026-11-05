@@ -19,8 +19,8 @@ func (a *App) spaces(c *ui.Context) {
 	ui.Column(c).Fill().Background(t.Chrome).Children(func() {
 		header := ui.Row(c).Height(31).FillWidth().Padding(0, 10, 0, 16).AlignItems(ui.Center).Justify(ui.SpaceBetween)
 		header.Children(func() {
-			ui.Text(c, "Spaces").FontSize(a.fontSize(11.5)).TextColor(t.Dim)
-			a.iconButton(c, "plus", 26, "New space", func() { a.newSpace() })
+			ui.Text(c, a.tr("Spaces")).FontSize(a.fontSize(11.5)).TextColor(t.Dim)
+			a.iconButton(c, "plus", 26, a.tr("New space"), func() { a.newSpace() })
 		})
 		ui.Scroll(c).Grow(1).Padding(0, 8, 14, 8).Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
@@ -28,7 +28,7 @@ func (a *App) spaces(c *ui.Context) {
 				machines := a.S.Machines()
 				if len(places) == 0 && len(machines) == 0 {
 					ui.Row(c).Height(28).PaddingX(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, "Loading…").FontSize(a.fontSize(12)).TextColor(t.Dim)
+						ui.Text(c, a.tr("Loading…")).FontSize(a.fontSize(12)).TextColor(t.Dim)
 					})
 					return
 				}
@@ -179,11 +179,11 @@ func (a *App) spaceRow(c *ui.Context, sp *herdr.Space, places []*herdr.Space, st
 		b := row.Bounds()
 		id := sp.ID
 		a.openMenuAt(b.X+x, b.Y+y, []MenuItem{
-			{Label: "Rename", Icon: "square-pen", Do: func() {
-				a.Prompt("Rename space", "Leave empty for where its first terminal is", sp.Name, "space.rename", id)
+			{Label: a.tr("Rename"), Icon: "square-pen", Do: func() {
+				a.Prompt(a.tr("Rename space"), a.tr("Leave empty for where its first terminal is"), sp.Name, "space.rename", id)
 			}},
-			{Label: "New tab", Icon: "plus", Do: func() { a.S.SelectSpace(0, id); a.newTab() }},
-			{Label: "Close", Icon: "close", Do: func() { a.requestClose("space.close", id) }},
+			{Label: a.tr("New tab"), Icon: "plus", Do: func() { a.S.SelectSpace(0, id); a.newTab() }},
+			{Label: a.tr("Close"), Icon: "close", Do: func() { a.requestClose("space.close", id) }},
 		})
 	}
 }
@@ -251,7 +251,7 @@ func (a *App) agents(c *ui.Context) {
 		}
 		row := ui.Row(c).Height(41).FillWidth().Padding(14, 16, 5, 16).Gap(8).AlignItems(ui.Center)
 		row.Children(func() {
-			ui.Text(c, "Agents").FontSize(a.fontSize(11.5)).FontWeight(500).TextColor(t.Dim)
+			ui.Text(c, a.tr("Agents")).FontSize(a.fontSize(11.5)).FontWeight(500).TextColor(t.Dim)
 			ui.Spacer(c)
 			a.agentCount(c, "blocked", blocked)
 			a.agentCount(c, "working", working)
@@ -277,7 +277,7 @@ func (a *App) agents(c *ui.Context) {
 		}
 		if len(list) == 0 {
 			ui.Box(c).PaddingX(12).Children(func() {
-				ui.Text(c, "No agent status yet. Older agents or tmux may not report.").
+				ui.Text(c, a.tr("No agent status yet. Older agents or tmux may not report.")).
 					FontSize(a.fontSize(12)).TextColor(t.Dim).Wrap()
 			})
 		}
@@ -340,7 +340,7 @@ func (a *App) agentGroups(c *ui.Context, list []*herdr.Agent) {
 		sort.SliceStable(mine, func(i, j int) bool { return mine[i].Seq > mine[j].Seq })
 		head := ui.Row(c).Height(30).FillWidth().Padding(8, 8, 0, 8).Gap(6).AlignItems(ui.Center)
 		head.Children(func() {
-			ui.Text(c, sec.label).FontSize(a.fontSize(11)).FontWeight(500).TextColor(t.Status(sec.word))
+			ui.Text(c, a.tr(sec.label)).FontSize(a.fontSize(11)).FontWeight(500).TextColor(t.Status(sec.word))
 			ui.Text(c, itoa(len(mine))).FontSize(a.fontSize(11)).TextColor(t.Dim)
 			ui.Spacer(c)
 		})
@@ -499,7 +499,7 @@ func (a *App) agentStatus(c *ui.Context, word string) {
 		a.spinner(c, 12, t.Working)
 	case "blocked":
 		ui.Box(c).Height(18).PaddingX(6).Radius(5).Center().Background(Alpha(t.Blocked, 0.15)).Children(func() {
-			ui.Text(c, "Needs you").FontSize(a.fontSize(10.5)).FontWeight(600).TextColor(t.Blocked)
+			ui.Text(c, a.tr("Needs you")).FontSize(a.fontSize(10.5)).FontWeight(600).TextColor(t.Blocked)
 		})
 	case "idle":
 		ui.Box(c).Size(7, 7).Radius(4).Border(1.5, t.Idle)
@@ -522,7 +522,7 @@ func (a *App) newSpace() {
 func (a *App) newSpaceOn(machine string) {
 	go func() {
 		if _, _, err := a.S.NewSpace("", "", machine, nil); err != nil {
-			a.toast("Cannot start a space", err.Error(), "error")
+			a.toast(a.tr("Cannot start a space"), err.Error(), "error")
 		}
 	}()
 }
@@ -645,11 +645,11 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 		a.icon(c, icon, 13, t.Dim)
 		label := name
 		if label == "" {
-			label = "This computer"
+			label = a.tr("This computer")
 		}
 		ui.Text(c, label).FontSize(a.fontSize(11)).TextColor(t.Dim).Grow(1).Ellipsis("…")
 		if !connected {
-			ui.Text(c, strings.ReplaceAll(state, "_", " ")).FontSize(a.fontSize(11)).TextColor(t.Dim)
+			ui.Text(c, a.tr(machineStateText(state))).FontSize(a.fontSize(11)).TextColor(t.Dim)
 		} else {
 			plus = ui.Box(c).Size(16, 16).Radius(4).Center()
 			if plus.Hovered() {
@@ -705,7 +705,7 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 				return
 			}
 			ui.Row(c).Height(28).PaddingX(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Loading…").FontSize(a.fontSize(12)).TextColor(t.Dim)
+				ui.Text(c, a.tr("Loading…")).FontSize(a.fontSize(12)).TextColor(t.Dim)
 			})
 			return
 		}
@@ -716,7 +716,7 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 		row.Cursor(ui.CursorPointer)
 		row.Children(func() {
 			a.icon(c, "plus", 12, t.Dim)
-			ui.Text(c, "New space there").FontSize(a.fontSize(12)).TextColor(t.Dim)
+			ui.Text(c, a.tr("New space there")).FontSize(a.fontSize(12)).TextColor(t.Dim)
 		})
 		if row.Clicked() {
 			a.newSpaceOn(name)

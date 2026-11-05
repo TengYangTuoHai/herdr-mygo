@@ -1,5 +1,7 @@
 build/
 .DS_Store
+# MyGo generates this catalog for web frontends; this app uses native Go UI.
+/locales.ts
 # Downloaded core releases, staged by go run ./cmd/prepare-hc.
 /resources/darwin-*/bin/
 /resources/linux-*/bin/
