@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
 	"herdr-mygo/internal/herdr"
@@ -76,10 +77,22 @@ type machineAddState struct {
 	target string            // the machine being added in it
 }
 
-// addMachineState is a copy for drawing, safe to read outside the lock.
+// addMachineSnapshot clears completed adds and returns a copy for drawing.
 func (a *App) addMachineSnapshot() machineAddState {
+	machines := a.S.Machines()
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	for _, m := range machines {
+		if a.mach.item[m.Target] == "terminal" {
+			delete(a.mach.item, m.Target)
+			if a.mach.query == m.Target {
+				a.mach.query = ""
+			}
+			if a.mach.target == m.Target {
+				a.mach.term, a.mach.target = "", ""
+			}
+		}
+	}
 	st := a.mach
 	st.hosts = append([]sshHost(nil), a.mach.hosts...)
 	st.item = map[string]string{}
@@ -325,16 +338,35 @@ func (a *App) machineTerminal(c *ui.Context, st machineAddState) {
 			close.Cursor(ui.CursorPointer)
 			close.Children(func() { a.icon(c, "close", 12, t.Dim) })
 			if close.Clicked() {
-				a.mu.Lock()
-				a.mach.term = ""
-				a.mach.target = ""
-				a.mu.Unlock()
 				a.CloseOverlay()
 			}
 		})
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		ui.Box(c).Grow(1).FillWidth().Background(t.Background).Children(func() {
-			a.terminalView(c, herdr.PaneInfo{Pane: "machine-add", Terminal: st.term})
+			if term := a.terminalFor(herdr.PaneInfo{Pane: "machine-add", Terminal: st.term}); term != nil {
+				view := terminal.View(c, term).Fill()
+				if a.focusTerm != term {
+					a.focusTerm = term
+					view.Focus()
+				}
+			}
 		})
+		if record := a.S.Terminal(st.term); record != nil && !record.Live() {
+			ui.Row(c).Height(36).FillWidth().PaddingX(12).Gap(8).AlignItems(ui.Center).Children(func() {
+				message := "The add command finished. Check its output above."
+				if record.ExitCode != nil && *record.ExitCode != 0 {
+					message = fmt.Sprintf("Could not add %s (exit %d).", st.target, *record.ExitCode)
+				}
+				ui.Text(c, message).FontSize(a.fontSize(12)).TextColor(t.Blocked).Grow(1)
+				a.smallButton(c, "Back", func() {
+					a.mu.Lock()
+					delete(a.mach.item, st.target)
+					a.mach.term, a.mach.target = "", ""
+					a.mu.Unlock()
+					a.focusTerm = nil
+					a.Repaint()
+				})
+			})
+		}
 	})
 }

@@ -285,7 +285,7 @@ func (s *Session) AddMachineInTerminal(target string) (string, error) {
 	if len(name) > 32 {
 		name = name[:32]
 	}
-	argv := []string{"hc", "machine", "add", target}
+	argv := []string{s.Core.Binary(), "machine", "add", target}
 	return s.runTerminal(argv, "", map[string]string{"herdr.run": "machine", "herdr.name": name}, "")
 }
 

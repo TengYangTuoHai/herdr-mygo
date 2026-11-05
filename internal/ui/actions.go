@@ -385,10 +385,6 @@ func (a *App) CloseOverlay() {
 	a.overlay = ""
 	a.focusTerm = nil
 	a.find.focus = a.find.key != ""
-	a.mu.Lock()
-	a.mach.term = ""
-	a.mach.target = ""
-	a.mu.Unlock()
 	a.Repaint()
 }
 

@@ -184,7 +184,7 @@ func (a *App) View(c *ui.Context) {
 	if a.overlay == "settings" && c.Shortcut(ui.Cmd, ui.KeyF) {
 		a.openSettingsSearch()
 	}
-	if a.overlay != "" && a.overlay != "peek" && c.Shortcut(0, ui.KeyEscape) {
+	if a.overlay != "" && a.overlay != "peek" && !(a.overlay == "machine-add" && a.addMachineSnapshot().term != "") && c.Shortcut(0, ui.KeyEscape) {
 		if a.overlay == "settings" && a.settings.ThemePicker != 0 {
 			a.settings.ThemePicker = 0
 		} else if a.overlay == "settings" && a.settings.SearchOpen {
@@ -1124,7 +1124,12 @@ func (a *App) startTerminal(key string, p herdr.PaneInfo) {
 		current := a.terms[key] == entry && !a.failedTerms[key]
 		a.mu.Unlock()
 		if current {
-			a.S.ClosePane(p.Pane)
+			if p.Pane == "machine-add" {
+				a.S.RefreshMachines()
+				a.Repaint()
+			} else {
+				a.S.ClosePane(p.Pane)
+			}
 		}
 	}()
 }
@@ -1160,6 +1165,12 @@ func (a *App) collect() {
 			for _, p := range a.S.Panes(tab.ID) {
 				live[p.Pane+"|"+p.Terminal] = true
 			}
+		}
+	}
+	if a.overlay == "machine-add" {
+		if st := a.addMachineSnapshot(); st.term != "" {
+			key := "machine-add|" + st.term
+			live[key], visible[key] = true, true
 		}
 	}
 	if a.find.key != "" && !visible[a.find.key] && a.find.key != "peek|"+a.peek.addr {
