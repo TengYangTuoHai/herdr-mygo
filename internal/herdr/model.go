@@ -207,14 +207,29 @@ type Foreground struct {
 	Cwd  string   `json:"cwd"`
 }
 
-// Word returns the agent's reported word, "" when it reports none.
-func (t *Terminal) Word() string { return t.Status.Word() }
+// activeStatus ignores a retained report once the original shell owns the
+// foreground again. The terminal itself remains live after its agent exits.
+func (t *Terminal) activeStatus() *Status {
+	if fg := t.Foreground; fg != nil && t.Pid != nil && fg.Pid > 0 && fg.Pid == *t.Pid {
+		name := fg.Name
+		if len(fg.Argv) > 0 {
+			name = fg.Argv[0]
+		}
+		if inList(shellNames, base(name)) && !shellCommand(fg.Argv) {
+			return nil
+		}
+	}
+	return t.Status
+}
+
+// Word returns the agent's reported word, "" when it reports none or exited.
+func (t *Terminal) Word() string { return t.activeStatus().Word() }
 
 // AgentTitle is the agent's reported session title, falling back to the
 // terminal title when the program does not report one.
 func (t *Terminal) AgentTitle() string {
-	if t.Status != nil && t.Status.Title != "" {
-		return t.Status.Title
+	if st := t.activeStatus(); st != nil && st.Title != "" {
+		return st.Title
 	}
 	return t.Title
 }
