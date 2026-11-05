@@ -20,26 +20,29 @@ func ConfigPath() string {
 // settingsFile is what the app keeps between launches of settingsState: the
 // search box and the section open are not settings.
 type settingsFile struct {
-	Appearance      int     `json:"appearance"`
-	Theme           string  `json:"theme"`
-	LightTheme      string  `json:"light_theme,omitempty"`
-	DarkTheme       string  `json:"dark_theme,omitempty"`
-	Accent          string  `json:"accent"`
-	InterfaceFont   string  `json:"interface_font"`
-	InterfaceSize   int     `json:"interface_size"`
-	TerminalFont    string  `json:"terminal_font"`
-	TerminalSize    int     `json:"terminal_size"`
-	OptionAsAlt     int     `json:"option_as_alt"`
-	Clipboard       bool    `json:"clipboard"`
-	MinContrast     float64 `json:"minimum_contrast"`
-	KeepSSHWarm     bool    `json:"keep_ssh_warm"`
-	AlertDone       bool    `json:"alert_done"`
-	AlertNeeds      bool    `json:"alert_needs"`
-	AlertSound      bool    `json:"alert_sound"`
-	UpdateChannel   int     `json:"update_channel"`
-	AutoInstall     bool    `json:"auto_install"`
-	BackgroundCheck bool    `json:"background_check"`
-	Telemetry       bool    `json:"telemetry"`
+	Appearance      int             `json:"appearance"`
+	Theme           string          `json:"theme"`
+	LightTheme      string          `json:"light_theme,omitempty"`
+	DarkTheme       string          `json:"dark_theme,omitempty"`
+	Accent          string          `json:"accent"`
+	InterfaceFont   string          `json:"interface_font"`
+	InterfaceSize   int             `json:"interface_size"`
+	TerminalFont    string          `json:"terminal_font"`
+	TerminalSize    int             `json:"terminal_size"`
+	Zoom            float32         `json:"zoom"`
+	OptionAsAlt     int             `json:"option_as_alt"`
+	Clipboard       bool            `json:"clipboard"`
+	MinContrast     float64         `json:"minimum_contrast"`
+	AlertDone       bool            `json:"alert_done"`
+	AlertNeeds      bool            `json:"alert_needs"`
+	AlertSound      bool            `json:"alert_sound"`
+	DoneSound       string          `json:"done_sound"`
+	NeedsSound      string          `json:"needs_sound"`
+	MutedAgents     map[string]bool `json:"muted_agents,omitempty"`
+	UpdateChannel   int             `json:"update_channel"`
+	AutoInstall     bool            `json:"auto_install"`
+	BackgroundCheck bool            `json:"background_check"`
+	Telemetry       bool            `json:"telemetry"`
 
 	SidebarOpen     bool            `json:"sidebar_open"`
 	SidebarWidth    float32         `json:"sidebar_width"`
@@ -53,10 +56,11 @@ func (s settingsState) file() settingsFile {
 		Appearance: s.Appearance, Theme: s.Theme, Accent: s.Accent,
 		LightTheme: s.LightTheme, DarkTheme: s.DarkTheme,
 		InterfaceFont: s.InterfaceFont, InterfaceSize: s.InterfaceSize,
-		TerminalFont: s.TerminalFont, TerminalSize: s.TerminalSize,
+		TerminalFont: s.TerminalFont, TerminalSize: s.TerminalSize, Zoom: s.Zoom,
 		OptionAsAlt: s.OptionAsAlt, Clipboard: s.Clipboard,
-		MinContrast: s.MinContrast, KeepSSHWarm: s.KeepSSHWarm,
-		AlertDone: s.AlertDone, AlertNeeds: s.AlertNeeds, AlertSound: s.AlertSound,
+		MinContrast: s.MinContrast,
+		AlertDone:   s.AlertDone, AlertNeeds: s.AlertNeeds, AlertSound: s.AlertSound,
+		DoneSound: s.DoneSound, NeedsSound: s.NeedsSound, MutedAgents: s.MutedAgents,
 		UpdateChannel: s.UpdateChannel, AutoInstall: s.AutoInstall,
 		BackgroundCheck: s.BackgroundCheck, Telemetry: s.Telemetry,
 		SidebarOpen: s.SidebarOpen, SidebarWidth: s.SidebarWidth,
@@ -86,13 +90,16 @@ func readSettings(data []byte, s settingsState) settingsState {
 	take("interface_size", &s.InterfaceSize)
 	take("terminal_font", &s.TerminalFont)
 	take("terminal_size", &s.TerminalSize)
+	take("zoom", &s.Zoom)
 	take("option_as_alt", &s.OptionAsAlt)
 	take("clipboard", &s.Clipboard)
 	take("minimum_contrast", &s.MinContrast)
-	take("keep_ssh_warm", &s.KeepSSHWarm)
 	take("alert_done", &s.AlertDone)
 	take("alert_needs", &s.AlertNeeds)
 	take("alert_sound", &s.AlertSound)
+	take("done_sound", &s.DoneSound)
+	take("needs_sound", &s.NeedsSound)
+	take("muted_agents", &s.MutedAgents)
 	take("update_channel", &s.UpdateChannel)
 	take("auto_install", &s.AutoInstall)
 	take("background_check", &s.BackgroundCheck)
@@ -121,8 +128,18 @@ func (s settingsState) sanitized() settingsState {
 	if s.Accent != "" && !validHex(s.Accent) {
 		s.Accent = defaultSettings().Accent
 	}
+	if strings.TrimSpace(s.InterfaceFont) == "" {
+		s.InterfaceFont = UIFont
+	}
+	if strings.TrimSpace(s.TerminalFont) == "" {
+		s.TerminalFont = TerminalFont
+	}
 	s.InterfaceSize = clampInt(s.InterfaceSize, 8, 40)
 	s.TerminalSize = clampInt(s.TerminalSize, 8, 40)
+	if s.Zoom <= 0 {
+		s.Zoom = 1
+	}
+	s.Zoom = min(max(s.Zoom, 0.5), 3)
 	if s.MinContrast < 1 {
 		s.MinContrast = 1
 	}
@@ -139,6 +156,15 @@ func (s settingsState) sanitized() settingsState {
 		s.SidebarWidth = 268
 	}
 	s.SidebarWidth = min(max(s.SidebarWidth, sidebarMinWidth), sidebarMaxWidth)
+	if !validAlertSound(s.DoneSound) {
+		s.DoneSound = "Glass"
+	}
+	if !validAlertSound(s.NeedsSound) {
+		s.NeedsSound = "Ping"
+	}
+	if s.MutedAgents == nil {
+		s.MutedAgents = map[string]bool{}
+	}
 	if s.FoldedMachines == nil {
 		s.FoldedMachines = map[string]bool{}
 	}
@@ -187,6 +213,9 @@ func (a *App) LoadSettings() {
 			a.savedSettings = string(canonical)
 		}
 	}
+	a.Zoom = a.settings.Zoom
+	a.applyTerminalFont()
+	a.applyTerminalPreferences()
 	a.SidebarOpen = a.settings.SidebarOpen
 	a.SidebarWidth = a.settings.SidebarWidth
 	a.agentsCollapsed = a.settings.AgentsCollapsed
@@ -200,6 +229,8 @@ func (a *App) LoadSettings() {
 // saveSettings writes the settings when they changed since the last write,
 // as every frame that changed one calls it and the rest do nothing.
 func (a *App) saveSettings() {
+	a.applyTerminalPreferences()
+	a.settings.Zoom = a.Zoom
 	if a.settingsPath == "" {
 		return
 	}

@@ -92,13 +92,13 @@ func (a *App) panelHeader(c *ui.Context, title, detail string, extra func()) {
 	ui.Column(c).Height(42).FillWidth().Children(func() {
 		row := ui.Row(c).Grow(1).FillWidth().PaddingX(14).Gap(8).AlignItems(ui.Center)
 		row.Children(func() {
-			ui.Text(c, title).FontSize(13).FontWeight(600).TextColor(t.Foreground)
+			ui.Text(c, title).FontSize(a.fontSize(13)).FontWeight(600).TextColor(t.Foreground)
 			if extra != nil {
 				extra()
 			}
 			ui.Spacer(c)
 			if detail != "" {
-				ui.Text(c, detail).FontSize(12).TextColor(t.Dim).MaxWidth(190).Ellipsis("…").TextAlign(ui.End)
+				ui.Text(c, detail).FontSize(a.fontSize(12)).TextColor(t.Dim).MaxWidth(190).Ellipsis("…").TextAlign(ui.End)
 			}
 		})
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
@@ -115,7 +115,7 @@ func (a *App) filesPanelView(c *ui.Context) {
 	if root == "" {
 		ui.Column(c).Fill().Background(t.Background).Radius(10).Border(1, t.Border).Clip().Children(func() {
 			a.panelHeader(c, "Files", "", nil)
-			ui.Text(c, "Reading the machine's home…").FontSize(12).TextColor(t.Dim).Padding(8)
+			ui.Text(c, "Reading the machine's home…").FontSize(a.fontSize(12)).TextColor(t.Dim).Padding(8)
 		})
 		return
 	}
@@ -126,7 +126,7 @@ func (a *App) filesPanelView(c *ui.Context) {
 		}
 		a.panelHeader(c, "Files", detail, func() {
 			if a.files.File != "" {
-				back := ui.Text(c, "←").FontSize(14).TextColor(t.Muted)
+				back := ui.Text(c, "←").FontSize(a.fontSize(14)).TextColor(t.Muted)
 				if back.Clicked() {
 					a.files.File = ""
 					a.files.Content = nil
@@ -137,7 +137,7 @@ func (a *App) filesPanelView(c *ui.Context) {
 			ui.ScrollBoth(c).Grow(1).Padding(12).Children(func() {
 				ui.Column(c).Children(func() {
 					for _, line := range a.files.Content {
-						ui.Text(c, line).Font("monospace").FontSize(11.5).TextColor(t.Foreground).NoWrap()
+						ui.Text(c, line).Font("monospace").FontSize(a.fontSize(11.5)).TextColor(t.Foreground).NoWrap()
 					}
 				})
 			})
@@ -160,7 +160,7 @@ func (a *App) fileRows(c *ui.Context, root, on, prefix string, depth int) {
 	if on == "" {
 		list, err := readDir(dir)
 		if err != nil {
-			ui.Text(c, err.Error()).FontSize(12).TextColor(t.Dim).Padding(8)
+			ui.Text(c, err.Error()).FontSize(a.fontSize(12)).TextColor(t.Dim).Padding(8)
 			return
 		}
 		for _, e := range list {
@@ -169,11 +169,11 @@ func (a *App) fileRows(c *ui.Context, root, on, prefix string, depth int) {
 	} else {
 		state := a.remoteListing(on, dir)
 		if state.Loading {
-			ui.Text(c, "Loading…").FontSize(12).TextColor(t.Dim).Padding(8)
+			ui.Text(c, "Loading…").FontSize(a.fontSize(12)).TextColor(t.Dim).Padding(8)
 			return
 		}
 		if state.Err != "" {
-			ui.Text(c, state.Err).FontSize(12).TextColor(t.Dim).Padding(8).Wrap()
+			ui.Text(c, state.Err).FontSize(a.fontSize(12)).TextColor(t.Dim).Padding(8).Wrap()
 			return
 		}
 		entries = state.Entries
@@ -204,7 +204,7 @@ func (a *App) fileRows(c *ui.Context, root, on, prefix string, depth int) {
 			} else {
 				a.icon(c, "file", 14, t.Muted)
 			}
-			ui.Text(c, name).FontSize(13).TextColor(t.Foreground).Grow(1).Ellipsis("…")
+			ui.Text(c, name).FontSize(a.fontSize(13)).TextColor(t.Foreground).Grow(1).Ellipsis("…")
 		})
 		if row.Clicked() {
 			if e.Dir {
@@ -262,19 +262,19 @@ func (a *App) changesPanelView(c *ui.Context) {
 		}
 		a.panelHeader(c, "Changes", "", func() {
 			ui.Box(c).PaddingX(5).Radius(4).Border(1, t.Border).Children(func() {
-				ui.Text(c, itoa(len(a.changes.Files))+" files").FontSize(10).TextColor(t.Muted)
+				ui.Text(c, itoa(len(a.changes.Files))+" files").FontSize(a.fontSize(10)).TextColor(t.Muted)
 			})
 			ui.Spacer(c)
 			if add > 0 {
-				ui.Text(c, "+"+itoa(add)).FontSize(11).TextColor(t.Ansi[2])
+				ui.Text(c, "+"+itoa(add)).FontSize(a.fontSize(11)).TextColor(t.Ansi[2])
 			}
 			if del > 0 {
-				ui.Text(c, "−"+itoa(del)).FontSize(11).TextColor(t.Ansi[1])
+				ui.Text(c, "−"+itoa(del)).FontSize(a.fontSize(11)).TextColor(t.Ansi[1])
 			}
 		})
 		if len(a.changes.Files) == 0 {
 			ui.Box(c).Padding(8).Children(func() {
-				ui.Text(c, "No uncommitted changes").FontSize(13).TextColor(t.Dim)
+				ui.Text(c, "No uncommitted changes").FontSize(a.fontSize(13)).TextColor(t.Dim)
 			})
 		}
 		ui.Column(c).Height(float32(minInt(200, maxInt(44, len(a.changes.Files)*28+12)))).FillWidth().Children(func() {
@@ -296,19 +296,19 @@ func (a *App) changesPanelView(c *ui.Context) {
 							case "D":
 								color = t.Ansi[1]
 							}
-							ui.Text(c, f.Status).FontSize(11).TextColor(color).Width(14)
+							ui.Text(c, f.Status).FontSize(a.fontSize(11)).TextColor(color).Width(14)
 							dir, name := filepath.Split(f.Path)
 							ui.Row(c).Grow(1).Children(func() {
 								if dir != "" {
-									ui.Text(c, dir).FontSize(13).TextColor(t.Dim).Ellipsis("…")
+									ui.Text(c, dir).FontSize(a.fontSize(13)).TextColor(t.Dim).Ellipsis("…")
 								}
-								ui.Text(c, name).FontSize(13).TextColor(t.Foreground).MaxWidth(260).Ellipsis("…")
+								ui.Text(c, name).FontSize(a.fontSize(13)).TextColor(t.Foreground).MaxWidth(260).Ellipsis("…")
 							})
 							if f.Add > 0 {
-								ui.Text(c, "+"+itoa(f.Add)).FontSize(11).TextColor(t.Ansi[2])
+								ui.Text(c, "+"+itoa(f.Add)).FontSize(a.fontSize(11)).TextColor(t.Ansi[2])
 							}
 							if f.Del > 0 {
-								ui.Text(c, "−"+itoa(f.Del)).FontSize(11).TextColor(t.Ansi[1])
+								ui.Text(c, "−"+itoa(f.Del)).FontSize(a.fontSize(11)).TextColor(t.Ansi[1])
 							}
 						})
 						if row.Clicked() {
@@ -338,7 +338,7 @@ func (a *App) changesPanelView(c *ui.Context) {
 						row.Background(t.Raised)
 					}
 					row.Children(func() {
-						ui.Text(c, line).Font("monospace").FontSize(11).TextColor(t.Foreground).NoWrap()
+						ui.Text(c, line).Font("monospace").FontSize(a.fontSize(11)).TextColor(t.Foreground).NoWrap()
 					})
 				}
 			})
@@ -346,7 +346,7 @@ func (a *App) changesPanelView(c *ui.Context) {
 		ui.Row(c).Height(52).FillWidth().PaddingX(10).PaddingY(10).Gap(8).AlignItems(ui.Center).Children(func() {
 			box := ui.Row(c).Height(32).Grow(1).PaddingX(10).Radius(8).Border(1, t.Border).AlignItems(ui.Center)
 			box.Children(func() {
-				input := ui.TextInputBase(c, &a.commitMessage).FontSize(12).TextColor(t.Foreground).Placeholder("Commit message…")
+				input := ui.TextInputBase(c, &a.commitMessage).FontSize(a.fontSize(12)).TextColor(t.Foreground).Placeholder("Commit message…")
 				if input.Submitted() {
 					a.commit(a.panelMachine(), root)
 				}
@@ -363,7 +363,7 @@ func (a *App) changesPanelView(c *ui.Context) {
 				if enabled {
 					color = t.SolidForeground
 				}
-				ui.Text(c, "Commit").FontSize(12).TextColor(color)
+				ui.Text(c, "Commit").FontSize(a.fontSize(12)).TextColor(color)
 			})
 			if enabled && btn.Clicked() {
 				a.commit(a.panelMachine(), root)

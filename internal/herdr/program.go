@@ -2,6 +2,7 @@ package herdr
 
 import (
 	"path"
+	"sort"
 	"strings"
 )
 
@@ -84,6 +85,16 @@ var agentPrograms = map[string]bool{
 	"hermes": true, "mastracode": true, "qoder": true, "muse": true,
 	"crush": true, "command-code": true, "prime-agent": true,
 	"gemini": true, "ollama": true, "deepseek": true,
+}
+
+// AgentPrograms returns the known agent programs, ordered by display name.
+func AgentPrograms() []ProgramInfo {
+	var out []ProgramInfo
+	for key := range agentPrograms {
+		out = append(out, info(key, programTable[key]))
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
 }
 
 // base returns a program's name from a path, without .exe.

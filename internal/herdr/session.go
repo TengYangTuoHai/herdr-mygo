@@ -48,6 +48,9 @@ type Session struct {
 	git           map[string]gitInfo
 	gitBusy       map[string]bool
 	agents        []*Agent
+	alertsReady   bool
+	alertStatuses map[string]string
+	agentAlerts   []Agent
 	agentSeq      int
 	seen          map[string]bool
 	subCh         uint32
@@ -569,7 +572,7 @@ func (s *Session) changed() {
 func (s *Session) reindex() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.agents = s.agentsLocked()
+	s.indexAgentAlertsLocked(s.agentsLocked())
 	if s.active == "" && len(s.spaces) > 0 {
 		s.active = s.spaces[0].ID
 	}

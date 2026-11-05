@@ -98,15 +98,18 @@ type settingsState struct {
 	InterfaceSize int
 	TerminalFont  string
 	TerminalSize  int
+	Zoom          float32
 
-	OptionAsAlt int
+	OptionAsAlt int // legacy saved preference; control hidden until MyGo supports it
 	Clipboard   bool
 	MinContrast float64
-	KeepSSHWarm bool
 
-	AlertDone  bool
-	AlertNeeds bool
-	AlertSound bool
+	AlertDone   bool
+	AlertNeeds  bool
+	AlertSound  bool
+	DoneSound   string
+	NeedsSound  string
+	MutedAgents map[string]bool
 
 	UpdateChannel   int
 	AutoInstall     bool
@@ -138,12 +141,15 @@ func defaultSettings() settingsState {
 		InterfaceSize:   13,
 		TerminalFont:    "JetBrains Mono",
 		TerminalSize:    14,
+		Zoom:            1,
 		Clipboard:       true,
 		MinContrast:     1,
-		KeepSSHWarm:     true,
 		AlertDone:       true,
 		AlertNeeds:      true,
 		AlertSound:      true,
+		DoneSound:       "Glass",
+		NeedsSound:      "Ping",
+		MutedAgents:     map[string]bool{},
 		AutoInstall:     true,
 		BackgroundCheck: true,
 		Telemetry:       true,
