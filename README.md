@@ -110,6 +110,37 @@ Additional MyGo build flags can be passed through, for example
 `./scripts/build-all.sh -skip-dmg -skip-installer` to omit DMG and Windows
 installer creation explicitly.
 
+## GitHub Actions packages
+
+[Build packages](.github/workflows/build.yml) can be run manually from the
+repository's Actions tab. It uses three standard GitHub-hosted runners:
+macOS builds `darwin/arm64,darwin/amd64`, Windows builds `windows/amd64`, and
+Linux builds `linux/arm64,linux/amd64`. Each runs `go tool mygo build -platform`
+with those targets, using the Go version in `go.mod` and the normal bundled
+core staging hook. The macOS runner creates DMGs, and the Windows runner can
+download NSIS automatically to create the Windows installer.
+
+The run uploads three artifacts, `herdr-darwin`, `herdr-windows` and
+`herdr-linux`, retained for seven days. They contain five `herdr-<os>-<arch>.tar.gz`
+archives in total. Each archive contains the complete `build/<os>-<arch>/`
+directory, including its installer or packages, bundled core, notices and
+native libraries. Archiving the directories preserves executable permissions
+when downloaded from Actions. Extract the archive, then use the installer or
+keep the complete app directory together.
+
+Pushing a `v*` tag also runs the builds and publishes the five complete target
+archives as GitHub Release assets after every build succeeds. The tag must
+match `mygo.json`'s version exactly, such as `v0.1.0` for version `0.1.0`;
+update that version before tagging a new release. Tags containing a hyphen
+produce prereleases. Manual runs only upload artifacts. The release job uses
+the repository's built-in `GITHUB_TOKEN` with `contents: write`; no additional
+release secret is needed. macOS builds use the existing ad hoc signing
+configuration; Developer ID signing and notarization still require separate
+Apple credentials and MyGo configuration.
+
+Standard hosted runner compute is free for public repositories; artifact and
+cache storage have separate allowances. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
 ## What is here
 
 | Files | What it does |
