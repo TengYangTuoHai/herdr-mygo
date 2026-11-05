@@ -112,8 +112,9 @@ installer creation explicitly.
 
 ## GitHub Actions packages
 
-[Build packages](.github/workflows/build.yml) can be run manually from the
-repository's Actions tab. It uses three standard GitHub-hosted runners:
+[Build packages](.github/workflows/build.yml) runs automatically on pushes to
+`master` and can also be run manually from the repository's Actions tab. It
+uses three standard GitHub-hosted runners:
 macOS builds `darwin/arm64,darwin/amd64`, Windows builds `windows/amd64`, and
 Linux builds `linux/arm64,linux/amd64`. Each runs `go tool mygo build -platform`
 with those targets, using the Go version in `go.mod` and the normal bundled
@@ -121,25 +122,79 @@ core staging hook. The macOS runner creates DMGs, and the Windows runner can
 download NSIS automatically to create the Windows installer.
 
 The run uploads three artifacts, `herdr-darwin`, `herdr-windows` and
-`herdr-linux`, retained for seven days. They contain five `herdr-<os>-<arch>.tar.gz`
-archives in total. Each archive contains the complete `build/<os>-<arch>/`
-directory, including its installer or packages, bundled core, notices and
-native libraries. Archiving the directories preserves executable permissions
-when downloaded from Actions. Extract the archive, then use the installer or
-keep the complete app directory together.
+`herdr-linux`, retained for seven days. They contain five archives named
+`herdr-<version>-<os>-<arch>.tar.gz` in total. Each archive contains the complete
+`build/<os>-<arch>/` directory, including its installer or packages, bundled core,
+notices and native libraries. Archiving the directories preserves executable
+permissions when downloaded from Actions. Extract the archive, then use the
+installer or keep the complete app directory together.
 
-Pushing a `v*` tag also runs the builds and publishes the five complete target
-archives as GitHub Release assets after every build succeeds. The tag must
-match `mygo.json`'s version exactly, such as `v0.1.0` for version `0.1.0`;
-update that version before tagging a new release. Tags containing a hyphen
-produce prereleases. Manual runs only upload artifacts. The release job uses
-the repository's built-in `GITHUB_TOKEN` with `contents: write`; no additional
-release secret is needed. macOS builds use the existing ad hoc signing
-configuration; Developer ID signing and notarization still require separate
-Apple credentials and MyGo configuration.
+After every build succeeds, a push to `master` publishes the five complete
+target archives as GitHub Release assets in a prerelease. The version is
+`<base>-dev.<run number>.g<short commit SHA>`, for example
+`0.1.0-dev.42.gabcdef1`, and its tag is `v0.1.0-dev.42.gabcdef1`. Every target
+uses that same version in its native package metadata, installer names and
+archive name. The release points to the exact commit that was built. Separate
+workflow runs get separate versions; reruns of the same run use the same version.
+
+Pushing a `v*` tag also runs the builds and publishes a versioned GitHub Release.
+The tag must match `mygo.json`'s version exactly, such as `v0.1.0` for `0.1.0`;
+a mismatch fails before the platform builds start. A version with a prerelease
+suffix, such as `0.2.0-rc.1`, produces a prerelease. Other branches do not trigger
+automatic builds or releases. Manual runs build the same development packages
+and only upload artifacts. The release job uses the repository's built-in
+`GITHUB_TOKEN` with `contents: write`; no additional release secret is needed.
+macOS builds use the existing ad hoc signing configuration; Developer ID
+signing and notarization still require separate Apple credentials and MyGo
+configuration.
 
 Standard hosted runner compute is free for public repositories; artifact and
 cache storage have separate allowances. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
+## Version management
+
+`mygo.json` is the single source for the app's planned release version. Use
+[Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`, optionally
+followed by a prerelease such as `-rc.1`. Store no `v` prefix or `+build` metadata
+in this field. Tags add the `v` prefix. The bundled hc version in
+`cmd/prepare-hc/release.json` is an independent upstream dependency.
+
+```bash
+go run ./cmd/version                 # show the planned version
+go run ./cmd/version bump patch      # 0.1.0 -> 0.1.1 (bug fixes)
+go run ./cmd/version bump minor      # 0.1.1 -> 0.2.0 (features)
+go run ./cmd/version bump major      # 0.2.0 -> 1.0.0 (stable contract / breaking changes)
+go run ./cmd/version set 0.2.0-rc.1   # choose an explicit release candidate
+```
+
+Bumps reset lower components to zero and remove any prerelease suffix. Commit
+`mygo.json` with the change that needs the new version. During `0.x` development,
+use minor bumps for substantial or incompatible features and patch bumps for
+fixes. After `1.0`, increment major for incompatible changes, minor for compatible
+features and patch for fixes. Do not infer release importance from commit text.
+
+Every push to `master` automatically publishes a development prerelease without
+editing or committing the base version back to the repository. A prerelease base
+is extended with `.dev.<run>.g<sha>` (for example `0.2.0-rc.1.dev.42.gabcdef1`).
+For an official release, commit the desired version first, then tag that exact
+commit as `v<version>` and push the tag. GitHub generates release notes. After an
+official release, bump the base for the next planned release before further
+feature work, so development packages sort below that upcoming release. Keep
+published version tags fixed; use a new version for changed packages.
+
+MyGo embeds the resolved package version. Settings reads that version from MyGo
+instead of keeping another version constant; a plain unpackaged `go run` shows
+`dev`. Local MyGo builds use the checked-in version. CI computes one version
+before starting the build matrix, applies it to each runner's copy of `mygo.json`,
+and uses the same value for the release. `go test ./cmd/version` checks bumps,
+validation, tag matching and development versions without publishing anything.
+
+These conventions follow [MyGo's tag-driven release guide](https://mygo.egoist.dev/docs/github-actions)
+and [GoReleaser's use of SemVer Git tags](https://goreleaser.com/getting-started/quick-start/).
+[Tiny RDM's Wails workflow](https://github.com/tiny-craft/tiny-rdm/blob/main/.github/workflows/release-macos.yaml)
+also derives a version from the release tag, writes it into the package config,
+and passes it to the app. Herdr keeps its existing MyGo packaging workflow and
+adds automatic development releases alongside official tagged releases.
 
 ## What is here
 

@@ -3,6 +3,8 @@ name: Build packages
 on:
   workflow_dispatch:
   push:
+    branches:
+      - master
     tags:
       - 'v*'
 
@@ -10,8 +12,35 @@ permissions:
   contents: read
 
 jobs:
+  version:
+    name: Resolve release version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Test version management
+        run: go test ./cmd/version
+
+      - name: Resolve version and validate release tag
+        id: version
+        run: go run ./cmd/version ci
+
   build:
     name: Build ${{ matrix.os }}
+    needs: version
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
@@ -41,17 +70,10 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Check release version
-        if: github.ref_type == 'tag'
+      - name: Apply package version
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          node <<'JS'
-          const version = require('./mygo.json').version;
-          if (process.env.RELEASE_TAG !== `v${version}`) {
-            throw new Error(`Release tag must be v${version}, matching mygo.json`);
-          }
-          JS
+          BUILD_VERSION: ${{ needs.version.outputs.version }}
+        run: go run ./cmd/version set "$BUILD_VERSION"
 
       - name: Build packages with bundled hc
         env:
@@ -63,11 +85,12 @@ jobs:
       - name: Archive complete target directories
         env:
           TARGET_OS: ${{ matrix.os }}
+          BUILD_VERSION: ${{ needs.version.outputs.version }}
         run: |
           mkdir -p artifacts
           for directory in build/"$TARGET_OS"-*; do
             target=$(basename "$directory")
-            tar -czf "artifacts/herdr-$target.tar.gz" -C build "$target"
+            tar -czf "artifacts/herdr-$BUILD_VERSION-$target.tar.gz" -C build "$target"
           done
 
       - name: Upload packages
@@ -80,9 +103,9 @@ jobs:
           retention-days: 7
 
   release:
-    name: Publish tagged release
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    name: Publish release
+    if: github.event_name == 'push'
+    needs: [version, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -98,13 +121,14 @@ jobs:
       - name: Publish complete packages
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
           fail_on_unmatched_files: true
           files: |
-            artifacts/herdr-darwin-arm64.tar.gz
-            artifacts/herdr-darwin-amd64.tar.gz
-            artifacts/herdr-windows-amd64.tar.gz
-            artifacts/herdr-linux-arm64.tar.gz
-            artifacts/herdr-linux-amd64.tar.gz
+            artifacts/herdr-${{ needs.version.outputs.version }}-darwin-arm64.tar.gz
+            artifacts/herdr-${{ needs.version.outputs.version }}-darwin-amd64.tar.gz
+            artifacts/herdr-${{ needs.version.outputs.version }}-windows-amd64.tar.gz
+            artifacts/herdr-${{ needs.version.outputs.version }}-linux-arm64.tar.gz
+            artifacts/herdr-${{ needs.version.outputs.version }}-linux-amd64.tar.gz
