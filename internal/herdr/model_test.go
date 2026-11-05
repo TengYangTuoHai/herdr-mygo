@@ -30,6 +30,52 @@ func TestSpaceNameHome(t *testing.T) {
 	}
 }
 
+func TestSpaceNameWindowsPaths(t *testing.T) {
+	cases := []struct {
+		name, folder, home, want string
+	}{
+		{"project", `D:\dev\git\android\DeviceUpgrade`, `C:\Users\user`, "DeviceUpgrade"},
+		{"trailing backslash", `D:\dev\git\DeviceUpgrade\`, `C:\Users\user`, "DeviceUpgrade"},
+		{"forward slashes", "D:/dev/git/DeviceUpgrade/", `C:\Users\user`, "DeviceUpgrade"},
+		{"mixed slashes", `D:\dev/git\DeviceUpgrade/`, `C:\Users\user`, "DeviceUpgrade"},
+		{"home", `C:\Users\user`, `C:\Users\user`, "~"},
+		{"home trailing backslash", `C:\Users\user\`, `C:\Users\user\`, "~"},
+		{"home mixed slashes", `C:\Users\user\`, "C:/Users/user/", "~"},
+		{"home child", `C:\Users\user\app`, `C:\Users\user`, "app"},
+		{"UNC", `\\server\share\app\`, `C:\Users\user`, "app"},
+		{"drive root", `D:\`, `C:\Users\user`, "D:"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			pc := "pc"
+			sp := &Space{ID: "pc/sp1", Machine: &pc, Folder: c.folder}
+			if got := spaceNameWith(sp, nil, c.home); got != c.want {
+				t.Errorf("spaceNameWith(%q, home %q) = %q, want %q", c.folder, c.home, got, c.want)
+			}
+		})
+	}
+}
+
+func TestSpaceNameWindowsTerminalCwd(t *testing.T) {
+	pc := "pc"
+	sp := &Space{ID: "pc/sp1", Machine: &pc, Folder: `D:\dev\original`, Tabs: []*Tab{
+		{ID: "tb1", Root: &Node{ID: "p1", Type: "block", Content: &NodeContent{Terminal: "pc/t1"}}},
+	}}
+	term := &Terminal{Cwd: `D:\dev\current`}
+	terminals := map[string]*Terminal{"pc/t1": term}
+	if got := spaceNameWith(sp, terminals, `C:\Users\user`); got != "current" {
+		t.Fatalf("terminal cwd: %q", got)
+	}
+	term.Foreground = &Foreground{Cwd: `D:\dev\foreground\`}
+	if got := spaceNameWith(sp, terminals, `C:\Users\user`); got != "foreground" {
+		t.Fatalf("foreground cwd: %q", got)
+	}
+	sp.Name = `custom\name`
+	if got := spaceNameWith(sp, terminals, `C:\Users\user`); got != sp.Name {
+		t.Fatalf("named space: %q", got)
+	}
+}
+
 func TestTerminalMachine(t *testing.T) {
 	cases := []struct{ addr, want string }{
 		{"t7", ""},
