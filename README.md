@@ -18,7 +18,11 @@ hc (herdr-core)                  this app
 
 ## Run
 
-Needs Go 1.27+ and `hc` on `PATH` (the Herdr app installs it in `~/.local/bin`).
+Needs Go 1.27+ and `hc` (herdr-core). For development, install it using the
+[upstream instructions](https://github.com/herdrdev/herdr-core#install), or
+run a bundled build as described below. The app checks its bundled core first,
+then `PATH`, then the upstream install locations (`~/.local/bin` on Unix and
+`%LOCALAPPDATA%\Programs\herdr-core` on Windows).
 
 ```sh
 go run .
@@ -27,10 +31,40 @@ go run .
 `herdr-core` keeps running when the window closes, exactly as with the
 original app: close the window, your agents keep working.
 
-To build an app bundle:
+To build an app bundle that also runs on a machine without `hc`, first stage
+the core for the target, then build:
 
 ```sh
-go tool mygo build
+go run ./cmd/prepare-hc -platform darwin/arm64
+go tool mygo build -platform darwin/arm64
+```
+
+Use the matching platform on other machines, such as `windows/amd64` or
+`linux/amd64`. The staging command downloads the pinned upstream release in
+[cmd/prepare-hc/release.json](cmd/prepare-hc/release.json), checks the archive's
+SHA-256, and extracts it to `resources/<os>-<arch>/bin/`. MyGo automatically
+copies those files into the target app: `Contents/Resources/bin/` in a macOS
+bundle, or `bin/` beside the executable on Windows and Linux. Distribute the
+whole app directory or package, including `bin/` and the native libraries.
+Copying just the Windows `.exe` is insufficient.
+
+The staged files include licenses and notices, Windows' required `conpty/`
+helpers, and the signed `Herdr Core.app` on macOS. The app uses that nested
+macOS bundle to retain the core's privacy identity. The core is ready offline
+at app startup; it is not downloaded or installed into the user's system.
+New cores inherit the bundled CLI directory on `PATH`, so their terminals can
+also run `hc`. Downloaded resources are ignored by git. To update the bundled
+core, update the version, URLs and checksums in `release.json` from the upstream
+versioned manifest, then stage and rebuild.
+
+Upstream publishes macOS and Linux builds for arm64 and amd64, and Windows
+for amd64 only. Staging `windows/arm64` fails explicitly because there is no
+native upstream release. To stage and build all five supported targets:
+
+```sh
+go run ./cmd/prepare-hc
+go tool mygo build \
+  -platform darwin/arm64,darwin/amd64,windows/amd64,linux/arm64,linux/amd64
 ```
 
 The first run downloads MyGo's `libghostty-vt` (the terminal emulator library
@@ -39,6 +73,7 @@ the terminal plugin uses, the same Ghostty VT the original app uses).
 To build macOS, Windows and Linux for both arm64 and amd64 in one run:
 
 ```sh
+go run ./cmd/prepare-hc
 ./scripts/build-all.sh
 ```
 
@@ -60,9 +95,13 @@ warns and skips DMGs on hosts other than macOS. macOS signing is ad hoc by
 default; distribution with Developer ID signing and notarization requires
 configuring those in MyGo.
 
-These are cross-compiled builds; running each app requires its target OS and
-`hc`, which these packages do not bundle. Additional MyGo build flags can be
-passed through, for example `./scripts/build-all.sh -o build/release` or
+These are cross-compiled builds; running each app requires its target OS. The
+script builds the UI and packages; stage the matching core resources first for
+a self-contained app. The staging command above covers five targets. Windows
+arm64 still needs a separately supplied compatible core, since upstream does
+not publish one. Without staged resources, the app needs an installed `hc`.
+Additional MyGo build flags can be passed through, for example
+`./scripts/build-all.sh -o build/release` or
 `./scripts/build-all.sh -skip-dmg -skip-installer` to omit DMG and Windows
 installer creation explicitly.
 
