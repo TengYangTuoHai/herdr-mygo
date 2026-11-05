@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -85,14 +86,18 @@ func TestSavedClipboardPermissionReachesNewTerminals(t *testing.T) {
 			// or pasting, which continue through the terminal's own bindings.
 			term.Feed([]byte("manual copy"))
 			tt.Frame()
-			tt.Key(myui.Cmd, myui.KeyA)
-			tt.Key(myui.Cmd, myui.KeyC)
+			mods := myui.Ctrl | myui.Shift
+			if runtime.GOOS == "darwin" {
+				mods = myui.Cmd
+			}
+			tt.Key(mods, myui.KeyA)
+			tt.Key(mods, myui.KeyC)
 			tt.Frame()
 			if got := strings.TrimSpace(tt.Clipboard()); got != "manual copy" {
 				t.Fatalf("manual copy = %q", got)
 			}
 			tt.SetClipboard("manual paste")
-			tt.Key(myui.Cmd, myui.KeyV)
+			tt.Key(mods, myui.KeyV)
 			tt.Frame()
 			if got := conn.waitFor(t, "manual paste"); !strings.HasSuffix(got, "manual paste") {
 				t.Fatalf("manual paste did not reach program: %q", got)

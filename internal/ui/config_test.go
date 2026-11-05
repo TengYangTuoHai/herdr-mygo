@@ -161,8 +161,9 @@ func TestViewSavesAsAChangeHappens(t *testing.T) {
 
 // TestConfigPathIsTheAppsOwn names the app's own file, never herdr-app's.
 func TestConfigPathIsTheAppsOwn(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", "/tmp/herdr-config-test")
-	if got, want := ConfigPath(), "/tmp/herdr-config-test/herdr-mygo/settings.json"; got != want {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	if got, want := ConfigPath(), filepath.Join(dir, "herdr-mygo", "settings.json"); got != want {
 		t.Fatalf("ConfigPath() = %q, want %q", got, want)
 	}
 }
