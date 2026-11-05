@@ -598,7 +598,7 @@ func (a *App) tab(c *ui.Context, tab *herdr.Tab, active bool) {
 			ui.Box(c).Size(6, 6).Radius(3).Background(t.Status(status))
 		}
 		if active {
-			a.icon(c, "close", 12, t.Dim)
+			a.iconButton(c, "close", 23, a.tr("Close tab"), func() { a.requestClose("tab.close", tab.ID) })
 		}
 	})
 	if row.Clicked() {
