@@ -194,7 +194,8 @@ func (a *App) View(c *ui.Context) {
 	}
 	frame.Children(func() {
 		if len(t.Glow.Stops) > 0 {
-			ui.Box(c).Absolute().Fill().LinearGradient(t.Glow)
+			// The decorative layer covers the frame, so let clicks reach its controls.
+			ui.Box(c).Absolute().Fill().LinearGradient(t.Glow).PassThrough()
 		}
 		a.sidebar(c)
 		if a.sidebarShown > 0 {

@@ -194,6 +194,96 @@ func TestThemePickerClicksAndGhosttySearch(t *testing.T) {
 	}
 }
 
+// TestThemeChangeKeepsMainWindowClickable follows the Settings flow with
+// the full frame, including the theme's decorative background layers.
+func TestThemeChangeKeepsMainWindowClickable(t *testing.T) {
+	RegisterFonts()
+	app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+	tt := myui.NewTester(app.View, 1280, 900)
+	if err := tt.Click("Settings"); err != nil {
+		t.Fatal(err)
+	}
+	if app.overlay != "settings" {
+		t.Fatal("Settings did not open")
+	}
+	if err := tt.Click("Petal, light windows"); err != nil {
+		t.Fatal(err)
+	}
+	if app.currentThemeName() != "petal" {
+		t.Fatal("the selected theme did not apply")
+	}
+	tt.Key(0, myui.KeyEscape)
+	if app.overlay != "" {
+		t.Fatal("Settings did not close")
+	}
+	if err := tt.Click("Settings"); err != nil {
+		t.Fatal(err)
+	}
+	if app.overlay != "settings" {
+		t.Fatal("main window stopped responding to clicks after changing theme")
+	}
+}
+
+// TestSavedThemeKeepsMainWindowClickable checks a fresh app loading the
+// saved choice, including Neutral's fully transparent glow in light mode.
+func TestSavedThemeKeepsMainWindowClickable(t *testing.T) {
+	RegisterFonts()
+	for _, choice := range []struct {
+		name string
+		dark bool
+	}{
+		{"petal", false},
+		{"dusk", true},
+		{"neutral", false},
+		{"Catppuccin Latte", false},
+		{"Catppuccin Mocha", true},
+		{"plain", true},
+	} {
+		t.Run(choice.name, func(t *testing.T) {
+			t.Setenv("HERDR_MYGO_HOME", t.TempDir())
+			first := NewApp(nil, ThemeByName("graphite"))
+			first.LoadSettings()
+			first.chooseTheme(choice.name, choice.dark)
+			first.saveSettings()
+
+			app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+			app.LoadSettings()
+			app.SetSystemAppearance(choice.dark)
+			if app.currentThemeName() != choice.name {
+				t.Fatalf("loaded theme = %q, want %q", app.currentThemeName(), choice.name)
+			}
+			tt := myui.NewTester(app.View, 1280, 900)
+			tt.Frame()
+			// The separately drawn divider still worked in the frozen UI.
+			listHeight := app.H - 46 - sidebarFooterHeight - 1
+			start := 46 + listHeight*app.splitRatio
+			before := app.splitRatio
+			tt.Press(120, start)
+			tt.Move(120, start+40)
+			tt.Release(120, start+40)
+			if app.splitRatio <= before {
+				t.Fatal("spaces/agents divider did not drag")
+			}
+			if err := tt.Click("Settings"); err != nil {
+				t.Fatal(err)
+			}
+			if app.overlay != "settings" {
+				t.Fatal("saved theme prevents Settings from opening after restart")
+			}
+			tt.Key(0, myui.KeyEscape)
+			if err := tt.Click("Files"); err != nil {
+				t.Fatal(err)
+			}
+			if app.panel != "files" {
+				t.Fatal("saved theme prevents the Files panel from opening")
+			}
+			if dir := os.Getenv("THEME_SHOT_DIR"); dir != "" {
+				saveThemeShot(t, tt, filepath.Join(dir, choice.name+"-interactive.png"))
+			}
+		})
+	}
+}
+
 func TestThemePickerInTheSettingsViewport(t *testing.T) {
 	RegisterFonts()
 	app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
