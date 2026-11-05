@@ -7,6 +7,8 @@
   "linux": {
     "depends": ["libnotify-bin", "libnotify4"]
   },
+  "i18n": { "dir": "internal/i18n/locales", "source": "en" },
+  "buildCommand": "go run ./cmd/prepare-hc",
   "macos": {
     "minimumSystemVersion": "13.0"
   }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -16,7 +17,11 @@ import (
 // a Unix socket allows.
 func controlHomeForTest(t *testing.T) string {
 	t.Helper()
-	home, err := os.MkdirTemp("/tmp", "herdr-control")
+	base := ""
+	if runtime.GOOS == "darwin" {
+		base = "/tmp" // macOS's default temporary path can exceed the socket limit.
+	}
+	home, err := os.MkdirTemp(base, "herdr-control")
 	if err != nil {
 		t.Fatal(err)
 	}

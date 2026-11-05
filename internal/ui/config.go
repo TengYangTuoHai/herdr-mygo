@@ -20,6 +20,7 @@ func ConfigPath() string {
 // settingsFile is what the app keeps between launches of settingsState: the
 // search box and the section open are not settings.
 type settingsFile struct {
+	Language        string          `json:"language"`
 	Appearance      int             `json:"appearance"`
 	Theme           string          `json:"theme"`
 	LightTheme      string          `json:"light_theme,omitempty"`
@@ -53,6 +54,7 @@ type settingsFile struct {
 // file is the state as the settings file keeps it.
 func (s settingsState) file() settingsFile {
 	return settingsFile{
+		Language:   s.Language,
 		Appearance: s.Appearance, Theme: s.Theme, Accent: s.Accent,
 		LightTheme: s.LightTheme, DarkTheme: s.DarkTheme,
 		InterfaceFont: s.InterfaceFont, InterfaceSize: s.InterfaceSize,
@@ -81,6 +83,7 @@ func readSettings(data []byte, s settingsState) settingsState {
 			_ = json.Unmarshal(raw, dst)
 		}
 	}
+	take("language", &s.Language)
 	take("appearance", &s.Appearance)
 	take("theme", &s.Theme)
 	take("light_theme", &s.LightTheme)
@@ -113,6 +116,9 @@ func readSettings(data []byte, s settingsState) settingsState {
 
 // sanitized brings what a file may say back to what the window can draw.
 func (s settingsState) sanitized() settingsState {
+	if !validLanguage(s.Language) {
+		s.Language = "system"
+	}
 	if s.Appearance < AppearanceSystem || s.Appearance > AppearanceDark {
 		s.Appearance = AppearanceSystem
 	}
@@ -213,6 +219,7 @@ func (a *App) LoadSettings() {
 			a.savedSettings = string(canonical)
 		}
 	}
+	a.setLanguage(a.settings.Language)
 	a.Zoom = a.settings.Zoom
 	a.applyTerminalFont()
 	a.applyTerminalPreferences()

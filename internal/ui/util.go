@@ -2,8 +2,9 @@ package ui
 
 import (
 	"os"
-	"os/exec"
 	"strings"
+
+	"herdr-mygo/internal/gitcmd"
 )
 
 // readDir lists a folder, folders first, without dotfiles.
@@ -31,7 +32,7 @@ func readDir(dir string) ([]os.DirEntry, error) {
 
 // gitStatus lists what changed in a folder.
 func gitStatus(dir string) ([]string, error) {
-	out, err := exec.Command("git", "-C", dir, "status", "--porcelain").Output()
+	out, err := gitcmd.Output(dir, "status", "--porcelain")
 	if err != nil {
 		return nil, err
 	}

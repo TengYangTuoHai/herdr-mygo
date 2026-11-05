@@ -18,7 +18,11 @@ hc (herdr-core)                  this app
 
 ## Run
 
-Needs Go 1.27+ and `hc` on `PATH` (the Herdr app installs it in `~/.local/bin`).
+Needs Go 1.27+ and `hc` (herdr-core). For development, install it using the
+[upstream instructions](https://github.com/herdrdev/herdr-core#install), or
+run a bundled build as described below. The app checks its bundled core first,
+then `PATH`, then the upstream install locations (`~/.local/bin` on Unix and
+`%LOCALAPPDATA%\Programs\herdr-core` on Windows).
 
 ```sh
 go run .
@@ -27,16 +31,50 @@ go run .
 `herdr-core` keeps running when the window closes, exactly as with the
 original app: close the window, your agents keep working.
 
-To build an app bundle:
+To build a self-contained app bundle, run MyGo's normal build command:
 
 ```sh
-go tool mygo build
+go tool mygo build -platform darwin/arm64
+```
+
+Use the matching platform on other machines, such as `windows/amd64` or
+`linux/amd64`. The `buildCommand` in `mygo.json` automatically stages the
+pinned core releases for all five supported targets before MyGo packages the
+app, including builds invoked through `scripts/build-all.sh`. A download,
+checksum or extraction failure stops the build instead of shipping an app
+without its core. No separate staging command is needed.
+
+The staging tool uses the upstream release pinned in
+[cmd/prepare-hc/release.json](cmd/prepare-hc/release.json), checks the archive's
+SHA-256, and extracts it to `resources/<os>-<arch>/bin/`. MyGo automatically
+copies those files into the target app: `Contents/Resources/bin/` in a macOS
+bundle, or `bin/` beside the executable on Windows and Linux. Distribute the
+whole app directory or package, including `bin/` and the native libraries.
+Copying just the Windows `.exe` is insufficient.
+
+The staged files include licenses and notices, Windows' required `conpty/`
+helpers, and the signed `Herdr Core.app` on macOS. The app uses that nested
+macOS bundle to retain the core's privacy identity. The core is ready offline
+at app startup; it is not downloaded or installed into the user's system.
+New cores inherit the bundled CLI directory on `PATH`, so their terminals can
+also run `hc`. Downloaded resources are ignored by git. To update the bundled
+core, update the version, URLs and checksums in `release.json` from the upstream
+versioned manifest, then rebuild.
+
+Upstream publishes macOS and Linux builds for arm64 and amd64, and Windows
+for amd64 only. Staging `windows/arm64` fails explicitly because there is no
+native upstream release. To build all five supported targets:
+
+```sh
+go tool mygo build \
+  -platform darwin/arm64,darwin/amd64,windows/amd64,linux/arm64,linux/amd64
 ```
 
 The first run downloads MyGo's `libghostty-vt` (the terminal emulator library
 the terminal plugin uses, the same Ghostty VT the original app uses).
 
-To build macOS, Windows and Linux for both arm64 and amd64 in one run:
+To build all five supported targets (macOS and Linux for arm64 and amd64,
+Windows for amd64) in one run:
 
 ```sh
 ./scripts/build-all.sh
@@ -44,13 +82,211 @@ To build macOS, Windows and Linux for both arm64 and amd64 in one run:
 
 Run with Bash (on Windows, use Git Bash or WSL). The script works from any
 working directory and writes each target to `build/<os>-<arch>/`, with macOS
-named `darwin`: macOS `.app` bundles, Windows `.exe` files, and Linux binaries
-and packages. MyGo includes the required native libraries. DMG and Windows
-installer creation are skipped by default, so NSIS is not required. These
-are cross-compiled builds; running each app requires its target OS and `hc`.
+named `darwin`. MyGo includes the required native libraries and creates these
+packages:
+
+| Target | Packages | Build host requirements |
+|---|---|---|
+| macOS (arm64, amd64) | `.app` bundle and `herdr-0.1.0-<arch>.dmg` | DMGs and signing require macOS; other hosts still build the `.app` |
+| Windows (amd64) | `.exe` and `herdr-setup-0.1.0-amd64.exe` installer | NSIS (`makensis`); MyGo downloads it automatically on Windows if missing |
+| Linux (arm64, amd64) | `.deb`, `.tar.gz`, a separate `install.sh`, and `PKGBUILD` | No extra packaging tools; building an Arch package from `PKGBUILD` requires `makepkg` on Arch Linux |
+
+On macOS or Linux, install NSIS to also create Windows installers (for example,
+`brew install nsis` on macOS or `sudo apt install nsis` on Debian/Ubuntu).
+Without NSIS on those hosts, MyGo warns and skips Windows installers. It also
+warns and skips DMGs on hosts other than macOS. macOS signing is ad hoc by
+default; see [macOS distribution and Gatekeeper](#macos-distribution-and-gatekeeper)
+for the current download and opening instructions.
+
+These are cross-compiled builds; running each app requires its target OS. The
+script builds the UI and packages with the matching core resources included
+automatically. Windows arm64 packaging is not supported. Builds require network
+access to the pinned releases. `-skip-build-command` explicitly bypasses core
+staging; use it only when the required resources have already been prepared
+with `go run ./cmd/prepare-hc`. Plain `go run .` and `go tool mygo dev` still
+need an installed core or manually staged development bundle.
 Additional MyGo build flags can be passed through, for example
-`./scripts/build-all.sh -o build/release` or, on macOS,
-`./scripts/build-all.sh -skip-dmg=false` to also create disk images.
+`./scripts/build-all.sh -o build/release` or
+`./scripts/build-all.sh -skip-dmg -skip-installer` to omit DMG and Windows
+installer creation explicitly.
+
+## macOS distribution and Gatekeeper
+
+This project's current release path does not use an Apple Developer Program
+account. The macOS app uses an ad hoc signature and is **not notarized by
+Apple**. You can publish the complete DMGs produced locally or by CI without
+Apple credentials, but downloaders should expect Gatekeeper to block the first
+open with a warning such as **“Apple could not verify ‘Herdr’ is free of malware
+that may harm your Mac or compromise your privacy.”** The exact wording varies
+by macOS version. These packages do not pass the default Gatekeeper checks.
+
+A local `go tool mygo build -platform darwin/arm64` build can run on the build
+machine because local builds normally have no `com.apple.quarantine` attribute.
+Browsers generally add this attribute to downloads, and it can follow an app
+copied from a DMG or extracted from an archive. Both local and CI builds use
+ad hoc signing; the local build is not more trusted by Apple. Re-uploading a
+local build, changing the archive format, or removing quarantine before
+upload does not prevent the recipient's browser from quarantining the download.
+A previous manual approval can also affect whether a Mac prompts again.
+
+If you trust the source and choose to run this unnotarized release, follow
+Apple's [Open Anyway instructions](https://support.apple.com/en-us/102445):
+
+1. Download the matching `herdr-<version>-arm64.dmg` for Apple silicon or
+   `herdr-<version>-amd64.dmg` for an Intel Mac. Open the DMG and drag
+   **Herdr** onto **Applications**.
+2. In Finder, open **Applications** and double-click **Herdr**. When macOS
+   shows the verification warning, dismiss it with **Done** or **OK**,
+   depending on the version; keep the app rather than moving it to the Trash.
+   You must try opening the app before the next step.
+3. Open the **Apple menu → System Settings → Privacy & Security**. Scroll
+   down to **Security**, find the message that Herdr was blocked, and click
+   **Open Anyway** (Chinese: **仍要打开**). If the button is missing, try
+   opening Herdr again, then return to this settings page. On a managed Mac,
+   your administrator may restrict these settings.
+4. When the warning appears again, click **Open** to confirm. Authenticate
+   if macOS asks. This saves an exception for the app, so subsequent launches
+   can use the usual double-click. A new build may require approval again.
+
+This is a manual exception on each recipient's Mac; the package remains
+unnotarized. These steps apply to the developer-verification warning above.
+If macOS instead reports detected malware or a damaged app, stop and obtain
+a fresh copy or contact the maintainer. No terminal command or global
+Gatekeeper setting change is needed for the Open Anyway procedure.
+
+If the project later enrolls in the Apple Developer Program, it can issue
+releases signed with a **Developer ID Application** certificate and private
+key, submitted to Apple's notarization service, and shipped with the accepted
+tickets stapled to the DMGs. MyGo supports that process, but the release Mac
+or CI must first be configured with the actual certificate and notarization
+credentials, and the resulting downloaded packages must be verified.
+An **Apple Development** certificate alone does not provide this distribution
+trust. Only publishing those signed and notarized builds would change the
+current Gatekeeper experience; a normal first-open confirmation for a
+downloaded app can still appear afterward.
+
+## GitHub Actions packages
+
+[Build packages](.github/workflows/build.yml) runs automatically on pushes to
+`master` and can also be run manually from the repository's Actions tab. It
+uses three standard GitHub-hosted runners:
+macOS builds `darwin/arm64,darwin/amd64`, Windows builds `windows/amd64`, and
+Linux builds `linux/arm64,linux/amd64`. Each runs `go tool mygo build -platform`
+with those targets, using the Go version in `go.mod` and the normal bundled
+core staging hook. The macOS runner creates DMGs, and the Windows runner can
+download NSIS automatically to create the Windows installer.
+
+The run uploads three artifacts, `herdr-darwin`, `herdr-windows` and
+`herdr-linux`, retained for seven days. They contain only the five native
+installers:
+
+| Platform | Release assets |
+|---|---|
+| macOS | `herdr-<version>-arm64.dmg`, `herdr-<version>-amd64.dmg` |
+| Windows | `herdr-setup-<version>-amd64.exe` |
+| Linux (Debian/Ubuntu) | `herdr_<debian-version>_arm64.deb`, `herdr_<debian-version>_amd64.deb` |
+
+Each installer includes the app, bundled core, notices and native libraries.
+Download the matching installer directly from the release. The workflow fails
+if any expected installer is missing or empty. Complete build directories,
+portable archives, `install.sh` and Arch `PKGBUILD` recipes are not release
+assets; they remain local MyGo build outputs. A `PKGBUILD` is a recipe, not a
+built Arch installer. Actions wraps its downloadable artifacts in ZIP files;
+GitHub Release assets are the native installer files themselves.
+
+After every build succeeds, a push to `master` publishes these five installers
+as GitHub Release assets in a prerelease. The version is
+`<base>-dev.<run number>.g<short commit SHA>`, for example
+`0.1.0-dev.42.gabcdef1`, and its tag is `v0.1.0-dev.42.gabcdef1`. Every target
+uses that same resolved version; MyGo converts Debian prerelease versions to
+use `~` before the suffix (for example `0.1.0~dev.42.gabcdef1`) and replaces
+hyphens within the suffix with dots. The release points to the exact commit
+that was built. Separate workflow runs get separate versions; reruns of the
+same run use the same version.
+
+Pushing a `v*` tag also runs the builds and publishes a versioned GitHub Release.
+The tag must match `mygo.json`'s version exactly, such as `v0.1.0` for `0.1.0`;
+a mismatch fails before the platform builds start. A version with a prerelease
+suffix, such as `0.2.0-rc.1`, produces a prerelease. Other branches do not trigger
+automatic builds or releases. Manual runs build the same development packages
+and only upload artifacts. The release job uses the repository's built-in
+`GITHUB_TOKEN` with `contents: write`; no additional release secret is needed.
+macOS packages use the current ad hoc signing configuration and are not
+notarized. Follow the [Open Anyway procedure](#macos-distribution-and-gatekeeper)
+after downloading; no Apple credentials are required for this release path.
+
+Standard hosted runner compute is free for public repositories; artifact and
+cache storage have separate allowances. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
+## Version management
+
+`mygo.json` is the single source for the app's planned release version. Use
+[Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`, optionally
+followed by a prerelease such as `-rc.1`. Store no `v` prefix or `+build` metadata
+in this field. Tags add the `v` prefix. The bundled hc version in
+`cmd/prepare-hc/release.json` is an independent upstream dependency.
+
+```bash
+go run ./cmd/version                 # show the planned version
+go run ./cmd/version bump patch      # 0.1.0 -> 0.1.1 (bug fixes)
+go run ./cmd/version bump minor      # 0.1.1 -> 0.2.0 (features)
+go run ./cmd/version bump major      # 0.2.0 -> 1.0.0 (stable contract / breaking changes)
+go run ./cmd/version set 0.2.0-rc.1   # choose an explicit release candidate
+```
+
+Bumps reset lower components to zero and remove any prerelease suffix. Commit
+`mygo.json` with the change that needs the new version. During `0.x` development,
+use minor bumps for substantial or incompatible features and patch bumps for
+fixes. After `1.0`, increment major for incompatible changes, minor for compatible
+features and patch for fixes. Do not infer release importance from commit text.
+
+Every push to `master` automatically publishes a development prerelease without
+editing or committing the base version back to the repository. A prerelease base
+is extended with `.dev.<run>.g<sha>` (for example `0.2.0-rc.1.dev.42.gabcdef1`).
+For an official release, commit the desired version first, then tag that exact
+commit as `v<version>` and push the tag. GitHub generates release notes. After an
+official release, bump the base for the next planned release before further
+feature work, so development packages sort below that upcoming release. Keep
+published version tags fixed; use a new version for changed packages.
+
+MyGo embeds the resolved package version. Settings reads that version from MyGo
+instead of keeping another version constant; a plain unpackaged `go run` shows
+`dev`. Local MyGo builds use the checked-in version. CI computes one version
+before starting the build matrix, applies it to each runner's copy of `mygo.json`,
+and uses the same value for the release. `go test ./cmd/version` checks bumps,
+validation, tag matching and development versions without publishing anything.
+
+These conventions follow [MyGo's tag-driven release guide](https://mygo.egoist.dev/docs/github-actions)
+and [GoReleaser's use of SemVer Git tags](https://goreleaser.com/getting-started/quick-start/).
+[Tiny RDM's Wails workflow](https://github.com/tiny-craft/tiny-rdm/blob/main/.github/workflows/release-macos.yaml)
+also derives a version from the release tag, writes it into the package config,
+and passes it to the app. Herdr keeps its existing MyGo packaging workflow and
+adds automatic development releases alongside official tagged releases.
+
+## Languages
+
+The interface follows the system’s preferred languages by default. English,
+Chinese (Simplified and Traditional) and Japanese are supported; if none of the
+preferred languages is supported, it uses English. Settings → Look → Language
+can keep English, 中文 (Simplified Chinese) or 日本語 instead, or return to System.
+The choice applies immediately and is saved as `language` in `settings.json`.
+Menus, native controls and dialogs use the same language as the interface.
+Terminal output, file contents, paths and user-assigned names retain their text.
+
+Messages live in standard ARB/ICU JSON catalogs in `internal/i18n/locales`, with
+English as the source and fallback. MyGo generates and registers their Go
+accessors, including its own control translations. After editing catalogs, run:
+
+```sh
+go tool mygo generate
+go tool mygo i18n check
+go test ./...
+```
+
+Commit `catalog_gen.go` with catalog changes so plain Go builds work too.
+`internal/i18n/messages.go` maps the UI’s English source strings to stable catalog
+keys; ICU placeholders and plural forms let translations order arguments and
+counts independently.
 
 ## What is here
 

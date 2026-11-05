@@ -1,0 +1,426 @@
+{
+  "@@locale": "en",
+  "settings": "Settings",
+  "look": "Look",
+  "terminal": "Terminal",
+  "machines": "Machines",
+  "alerts": "Alerts",
+  "language": "Language",
+  "followTheSystemOrChooseALanguage": "Follow the system, or choose a language.",
+  "system": "System",
+  "light": "Light",
+  "dark": "Dark",
+  "appearance": "Appearance",
+  "theme": "Theme",
+  "accent": "Accent",
+  "interfaceFont": "Interface font",
+  "terminalFont": "Terminal font",
+  "zoom": "Zoom",
+  "clipboard": "Clipboard",
+  "minimumContrast": "Minimum contrast",
+  "done": "Done",
+  "needsYou": "Needs you",
+  "working": "Working",
+  "idle": "Idle",
+  "playASound": "Play a sound",
+  "doneSound": "Done sound",
+  "needsYouSound": "Needs you sound",
+  "byAgent": "By agent",
+  "on": "On",
+  "off": "Off",
+  "manage": "Manage",
+  "systemOrAlwaysLightOrDark": "System, or always light or dark.",
+  "colorsForTheChromeAndEveryTerminal": "Colors for the chrome and every terminal.",
+  "focusRingsSelectionsAndKeyHints": "Focus rings, selections and key hints.",
+  "thePanelsTypefaceAndSize": "The panels’ typeface and size.",
+  "usedByEveryPaneOnEveryMachine": "Used by every pane, on every machine.",
+  "scalesTheWholeWindowTerminalsIncluded": "Scales the whole window, terminals included.",
+  "letTerminalProgramsWriteTheClipboard": "Let terminal programs write the clipboard.",
+  "raiseTerminalTextContrast10LeavesProgram": "Raise terminal text contrast. 1.0 leaves program colors alone.",
+  "addConnectAndRemoveTheComputersHerdrReaches": "Add, connect and remove the computers Herdr reaches over ssh.",
+  "aSystemNotificationWithOptionalSoundWhenAn": "A system notification, with optional sound, when an agent finishes while you are elsewhere.",
+  "whenAnAgentAsksAQuestionOrWaits": "When an agent asks a question or waits for approval.",
+  "useTheBuiltInSoundsOrChooseYour": "Use the built-in sounds, or choose your own files.",
+  "playsWhenAnAgentFinishes": "Plays when an agent finishes.",
+  "playsWhenAnAgentAsksSomething": "Plays when an agent asks something.",
+  "turnASoundOffForOneAgentWithout": "Turn a sound off for one agent without changing the rest.",
+  "searchSettings": "Search settings",
+  "dRESULTS": "{arg1} RESULTS",
+  "@dRESULTS": {
+    "placeholders": {
+      "arg1": {
+        "type": "int"
+      }
+    }
+  },
+  "nothingMatchesQ": "Nothing matches {arg1}.",
+  "@nothingMatchesQ": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "move": "move",
+  "open": "open",
+  "close": "close",
+  "zoomOut": "Zoom out",
+  "zoomIn": "Zoom in",
+  "reset": "Reset",
+  "followTheSystemOrAlwaysUseLightOr": "Follow the system, or always use light or dark.",
+  "themeAccentAndTypeEverythingAppliesAsYou": "Theme, accent and type. Everything applies as you change it.",
+  "savedAsYouGo": "· saved as you go",
+  "chooseColorsForLightAndDarkWindowsChrome": "Choose colors for light and dark windows. Chrome and every terminal change together.",
+  "lightWindows": "Light windows",
+  "darkWindows": "Dark windows",
+  "searchGhosttyThemes": "Search Ghostty themes…",
+  "noThemesFound": "No themes found",
+  "ghosttyTheme": "Ghostty theme",
+  "builtInAndInstalledGhosttyPalettes": "Built-in and installed Ghostty palettes.",
+  "howPanesBehaveHereAndOnEveryMachine": "How panes behave, here and on every machine.",
+  "message10LeavesProgramColorsAloneRaiseIt": "1.0 leaves program colors alone. Raise it to steady light and dark text.",
+  "theBackgroundProgramThatRunsYourTerminalsAnd": "The background program that runs your terminals and agents.",
+  "notRunning": "Not running",
+  "connected": "Connected",
+  "connecting": "Connecting",
+  "needsLogin": "Needs login",
+  "offline": "Offline",
+  "preview": "Preview",
+  "herdrReachesOtherComputersOverSshTheirTerminals": "Herdr reaches other computers over ssh. Their terminals and agents keep running there.",
+  "thisComputer": "This computer",
+  "whereThisWindowRuns": "where this window runs",
+  "aMachineRunsItsOwnHerdrCoreSo": "A machine runs its own herdr-core, so its agents keep working when this Mac sleeps.",
+  "noOtherMachinesYet": "No other machines yet",
+  "addAServerOrAMacFromYour": "Add a server or a Mac from your ~/.ssh/config, or type how ssh reaches it. Its terminals and agents run there, and keep working when this Mac sleeps.",
+  "addMachine": "Add machine",
+  "remove": "Remove",
+  "connect": "Connect",
+  "cannotRemoveTheMachine": "Cannot remove the machine",
+  "cannotConnect": "Cannot connect",
+  "fromSshConfigOrAnAddress": "From ~/.ssh/config or an address",
+  "whenAnAgentFinishesOrNeedsYouHerdr": "When an agent finishes or needs you, Herdr can send a system notification and play a sound.",
+  "doneAlerts": "Done alerts",
+  "needsYouAlerts": "Needs you alerts",
+  "playAlertSounds": "Play alert sounds",
+  "useTheBuiltInSoundsOrChooseA": "Use the built-in sounds, or choose a WAV file up to 10 seconds long.",
+  "customize": "Customize  ›",
+  "hide": "Hide  ‹",
+  "alertsAppearOnlyForAgentsInAnotherSpace": "Alerts appear only for agents in another space. Muting an agent turns off its sound, while keeping system notifications.",
+  "soundIsOffSystemNotificationsStillAppearWhen": "Sound is off. System notifications still appear when an agent in another space finishes or needs you.",
+  "allAgentsOn": "All agents on",
+  "dMuted": "{arg1} muted",
+  "@dMuted": {
+    "placeholders": {
+      "arg1": {
+        "type": "int"
+      }
+    }
+  },
+  "choose": "Choose…",
+  "wAVSounds": "WAV sounds",
+  "cannotChooseSound": "Cannot choose sound",
+  "cannotPlaySound": "Cannot play sound",
+  "cannotShowSystemNotification": "Cannot show system notification",
+  "allowHerdrNotificationsInSystemNotificationSettings": "Allow Herdr notifications in system notification settings.",
+  "search": "Search",
+  "hideSidebar": "Hide sidebar",
+  "showSidebar": "Show sidebar",
+  "newTab": "New tab",
+  "rename": "Rename",
+  "renameTab": "Rename tab",
+  "leaveEmptyForItsNumber": "Leave empty for its number",
+  "close2": "Close",
+  "findInTerminal": "Find in terminal",
+  "splitRight": "Split right",
+  "splitDown": "Split down",
+  "closePane": "Close pane",
+  "closeTab": "Close tab",
+  "closeSpace": "Close space",
+  "renameSpace": "Rename space",
+  "leaveEmptyForWhereItsFirstTerminalIs": "Leave empty for where its first terminal is",
+  "spaces": "Spaces",
+  "agents": "Agents",
+  "loading": "Loading…",
+  "noAgentStatusYetOlderAgentsOrTmux": "No agent status yet. Older agents or tmux may not report.",
+  "newSpace": "New space",
+  "newSpaceThere": "New space there",
+  "noSpacesYet": "No spaces yet",
+  "pressNForANewSpaceOrUse": "Press ⌘N for a new space, or use the sidebar.",
+  "dAgents": "{arg1, plural, one {# agent} other {# agents}}",
+  "@dAgents": {
+    "placeholders": {
+      "arg1": {
+        "type": "int"
+      }
+    }
+  },
+  "dNeedsYou": "· {arg1} needs you",
+  "@dNeedsYou": {
+    "placeholders": {
+      "arg1": {
+        "type": "int"
+      }
+    }
+  },
+  "connectingToHerdrCore": "Connecting to herdr-core…",
+  "cannotStartATerminal": "Cannot start a terminal",
+  "cannotStartTheTerminal": "Cannot start the terminal",
+  "cannotStartASpace": "Cannot start a space",
+  "cannotSplitThePane": "Cannot split the pane",
+  "cannotShowTheTerminal": "Cannot show the terminal",
+  "cannotKeepTheSubAgent": "Cannot keep the sub-agent",
+  "cannotPasteTheImage": "Cannot paste the image",
+  "theImageIsLargerThan8MB": "The image is larger than 8 MB.",
+  "findInTerminal2": "Find in terminal…",
+  "terminalSearch": "Terminal search",
+  "searching": "Searching…",
+  "noMatches": "No matches",
+  "dOfD": "{arg1} of {arg2}",
+  "@dOfD": {
+    "placeholders": {
+      "arg1": {
+        "type": "int"
+      },
+      "arg2": {
+        "type": "int"
+      }
+    }
+  },
+  "previousMatchShiftEnter": "Previous match (Shift+Enter)",
+  "nextMatchEnter": "Next match (Enter)",
+  "closeTerminalSearchEscape": "Close terminal search (Escape)",
+  "openingTheTerminal": "Opening the terminal…",
+  "back": "Back",
+  "addAMachine": "Add a machine",
+  "aVPSAMacMiniABoxAt": "A VPS, a Mac mini, a box at home: Herdr reaches it over ssh, and agents there keep running while your laptop sleeps.",
+  "fromYourSshConfig": "From your ssh config",
+  "yourSshConfigListsNoHosts": "Your ssh config lists no hosts",
+  "readingSshConfig": "Reading ~/.ssh/config…",
+  "orTypeHowSshReachesIt": "Or type how ssh reaches it",
+  "add": "Add",
+  "added": "Added",
+  "connecting2": "Connecting…",
+  "waitingInItsTerminal": "Waiting in its terminal",
+  "addingSAnswerItHere": "Adding {arg1}: answer it here",
+  "@addingSAnswerItHere": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "theAddCommandFinishedCheckItsOutputAbove": "The add command finished. Check its output above.",
+  "couldNotAddSExitD": "Could not add {arg1} (exit {arg2}).",
+  "@couldNotAddSExitD": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "int"
+      }
+    }
+  },
+  "files": "Files",
+  "changes": "Changes",
+  "readingTheMachineSHome": "Reading the machine's home…",
+  "noUncommittedChanges": "No uncommitted changes",
+  "commitMessage": "Commit message…",
+  "commit": "Commit",
+  "commitFailed": "Commit failed",
+  "binaryFileNoTextPreview": "Binary file · no text preview",
+  "binaryFile": "Binary file",
+  "noTextDiffAvailable": "No text diff available",
+  "noChanges": "No changes.",
+  "typeACommand": "Type a command…",
+  "goToATabSpaceOrAgent": "Go to a tab, space or agent…",
+  "goToSpaceOrTab": "Go to space or tab…",
+  "tab": "Tab",
+  "pane": "Pane",
+  "space": "Space",
+  "layout": "Layout",
+  "agent": "Agent",
+  "window": "Window",
+  "app": "App",
+  "nextTab": "Next tab",
+  "previousTab": "Previous tab",
+  "zoomPane": "Zoom pane",
+  "focusPaneLeft": "Focus pane left",
+  "focusPaneRight": "Focus pane right",
+  "focusPaneUp": "Focus pane up",
+  "focusPaneDown": "Focus pane down",
+  "swapPaneLeft": "Swap pane left",
+  "swapPaneRight": "Swap pane right",
+  "swapPaneUp": "Swap pane up",
+  "swapPaneDown": "Swap pane down",
+  "nextSpace": "Next space",
+  "previousSpace": "Previous space",
+  "nextLayout": "Next layout",
+  "newTerminal": "New terminal",
+  "findNextMatch": "Find next match",
+  "findPreviousMatch": "Find previous match",
+  "copy": "Copy",
+  "paste": "Paste",
+  "nextAgent": "Next agent",
+  "previousAgent": "Previous agent",
+  "minimizeWindow": "Minimize window",
+  "maximizeWindow": "Maximize window",
+  "closeWindow": "Close window",
+  "keys": "Keys",
+  "welcome": "Welcome",
+  "resetZoom": "Reset zoom",
+  "quitHerdr": "Quit Herdr",
+  "themeGraphite": "Theme: graphite",
+  "themeInk": "Theme: ink",
+  "themeMoss": "Theme: moss",
+  "themePaper": "Theme: paper",
+  "themeS": "Theme: {arg1}",
+  "@themeS": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "startAnAgent": "Start an agent",
+  "noAgentsToStartFromTheAppYet": "No agents to start from the app yet.",
+  "cancel": "Cancel",
+  "save": "Save",
+  "dismissNotification": "Dismiss notification",
+  "welcomeToHerdr": "Welcome to Herdr",
+  "bETA": "BETA",
+  "dragToMove": "Drag to move",
+  "herdrRunsYourTerminalsInTheBackground": "Herdr runs your terminals in the background",
+  "theTerminalsAndAgentsYouOpenHereDon": "The terminals and agents you open here don't live in this window. They run in herdr-core, a small background program on your computer. Close Herdr, update it, or let it crash, and your agents keep working. Open it again and everything is where you left it, as long as the computer is on.",
+  "size": "Size",
+  "next": "Next",
+  "agentsTellYouWhenTheyNeedYou": "Agents tell you when they need you",
+  "aRingWhileOneWorksNeedsYouWhen": "A ring while one works, “Needs you” when it asks something, a sound when it finishes.",
+  "yourOtherMachinesInTheSameWindow": "Your other machines, in the same window",
+  "aServerOrAMacMiniRunsIts": "A server or a Mac mini runs its own herdr-core, so its agents keep going even while this laptop sleeps.",
+  "agentsCanStartHelpers": "Agents can start helpers",
+  "theyShowUpUnderTheAgentThatStarted": "They show up under the agent that started them. Click one to watch it.",
+  "aProgramIsStillRunningInThisTerminal": "A program is still running in this terminal. Closing will end it.",
+  "closeS": "Close {arg1}?",
+  "@closeS": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "closeS2": "Close {arg1}",
+  "@closeS2": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "pane2": "pane",
+  "tab2": "tab",
+  "space2": "space",
+  "programsAreStillRunningInDTerminalsClosing": "Programs are still running in {arg1} terminals. Closing this {arg2} will end them.",
+  "@programsAreStillRunningInDTerminalsClosing": {
+    "placeholders": {
+      "arg1": {
+        "type": "int"
+      },
+      "arg2": {
+        "type": "String"
+      }
+    }
+  },
+  "dFiles": "{arg1, plural, one {# file} other {# files}}",
+  "@dFiles": {
+    "placeholders": {
+      "arg1": {
+        "type": "int"
+      }
+    }
+  },
+  "fromS": "from {arg1}",
+  "@fromS": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "alsoS": "also {arg1}",
+  "@alsoS": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "previewS": "Preview {arg1}",
+  "@previewS": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseS": "Choose {arg1}",
+  "@chooseS": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "sSelection": "{arg1} selection",
+  "@sSelection": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "sSound": "{arg1} sound",
+  "@sSound": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "sFamily": "{arg1} family",
+  "@sFamily": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "sSize": "{arg1} size",
+  "@sSize": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "goTo": "↗ go to",
+  "hcNotOnPATH": "hc (not on PATH)",
+  "fileTruncated": "… (file truncated)",
+  "commands": "commands",
+  "sCommands": "{arg1}  commands",
+  "@sCommands": {
+    "placeholders": {
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "keep": "↗ keep",
+  "working2": "working",
+  "needsYou2": "needs you",
+  "finished": "finished",
+  "idle2": "idle",
+  "lightWindows2": "light windows",
+  "darkWindows2": "dark windows",
+  "systemNotificationsRequirePackagedApp": "system notifications require a packaged app; run go tool mygo dev or go tool mygo build"
+}

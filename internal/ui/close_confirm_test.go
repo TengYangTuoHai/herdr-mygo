@@ -124,6 +124,7 @@ func TestCloseConfirmKeepsTerminalKeyboard(t *testing.T) {
 	f.tt.Frame()
 	f.tt.Type("pending")
 	f.tt.Frame()
+	f.conns[0].flushInput(t, f.app.terms["p1|t1"].term)
 	if got := f.conns[0].typed(); got != "" {
 		t.Fatalf("terminal received input while confirmation was open: %q", got)
 	}

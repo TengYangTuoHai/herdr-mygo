@@ -116,11 +116,11 @@ func (a *App) readRemoteFile(on, path string) []string {
 	}
 	text := res.Stdout
 	if strings.ContainsRune(text, 0) {
-		return []string{"Binary file"}
+		return []string{a.tr("Binary file")}
 	}
 	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
 	if len(lines) > 4000 {
-		lines = append(lines[:4000], "… (file truncated)")
+		lines = append(lines[:4000], a.tr("… (file truncated)"))
 	}
 	return lines
 }

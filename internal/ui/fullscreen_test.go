@@ -22,10 +22,15 @@ import (
 
 // The fixture speaks the real core protocol in a child test process. It gives
 // each attachment a first screen at exactly the grid requested by the app.
-func TestFullscreenCoreProcess(t *testing.T) {
-	if os.Getenv("FULLSCREEN_TEST_CORE") != "1" {
-		return
+func TestMain(m *testing.M) {
+	if os.Getenv("FULLSCREEN_TEST_CORE") == "1" && len(os.Args) == 2 && os.Args[1] == "connect" {
+		runFullscreenCore()
+		os.Exit(0)
 	}
+	os.Exit(m.Run())
+}
+
+func runFullscreenCore() {
 	in := bufio.NewReader(os.Stdin)
 	_, _ = in.ReadString('\n')
 	fmt.Fprintln(os.Stdout, `{"jsonrpc":"2.0","id":0,"result":{}}`)
@@ -111,11 +116,7 @@ func fullscreenSession(t *testing.T) *herdr.Session {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bin := filepath.Join(t.TempDir(), "hc")
-	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexec '"+strings.ReplaceAll(exe, "'", "'\\''")+"' -test.run='^TestFullscreenCoreProcess$'\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	s, err := herdr.Connect(bin, nil)
+	s, err := herdr.Connect(exe, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

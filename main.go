@@ -21,6 +21,7 @@ func main() {
 	app := myui.NewApp(nil, theme)
 	app.LoadSettings()
 	mygo.App.WhenReady(func() {
+		app.StartLocalization()
 		myui.InstallMenu()
 		point := mygo.Point{X: 12, Y: 16}
 		app.Win = mygo.NewWindow(mygo.WindowOptions{
@@ -29,6 +30,7 @@ func main() {
 			Height:               820,
 			StateKey:             "main",
 			TitleBarStyle:        mygo.TitleBarHidden,
+			TitleBarHeight:       42,
 			TrafficLightPosition: &point,
 			BackgroundColor:      "light-dark(#f6f7f9, #131518)",
 			Content:              ui.View(app.View),

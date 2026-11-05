@@ -81,13 +81,13 @@ func (a *App) pasteImage(term *terminal.Terminal, addr string, d transfer.Data) 
 		return false
 	}
 	if len(image) > maxPastedImage {
-		a.toast("Cannot paste the image", "The image is larger than 8 MB.", "error")
+		a.toast(a.tr("Cannot paste the image"), a.tr("The image is larger than 8 MB."), "error")
 		return true
 	}
 	go func() {
 		put, err := a.S.Put(addr, imageName(format), image)
 		if err != nil {
-			a.toast("Cannot paste the image", err.Error(), "error")
+			a.toast(a.tr("Cannot paste the image"), err.Error(), "error")
 			return
 		}
 		term.Paste(put.Path)

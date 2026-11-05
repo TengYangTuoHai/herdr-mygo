@@ -1,11 +1,11 @@
 package ui
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
 	"herdr-mygo/internal/herdr"
@@ -76,10 +76,22 @@ type machineAddState struct {
 	target string            // the machine being added in it
 }
 
-// addMachineState is a copy for drawing, safe to read outside the lock.
+// addMachineSnapshot clears completed adds and returns a copy for drawing.
 func (a *App) addMachineSnapshot() machineAddState {
+	machines := a.S.Machines()
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	for _, m := range machines {
+		if a.mach.item[m.Target] == "terminal" {
+			delete(a.mach.item, m.Target)
+			if a.mach.query == m.Target {
+				a.mach.query = ""
+			}
+			if a.mach.target == m.Target {
+				a.mach.term, a.mach.target = "", ""
+			}
+		}
+	}
 	st := a.mach
 	st.hosts = append([]sshHost(nil), a.mach.hosts...)
 	st.item = map[string]string{}
@@ -186,30 +198,30 @@ func (a *App) machineAddOverlay(c *ui.Context) {
 	panel := a.card(c, width, height).Absolute().Top((a.H - height) / 2).Left((a.W - width) / 2)
 	panel.Padding(18, 18, 14, 18).Gap(0).Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "Add a machine").FontSize(a.fontSize(15)).FontWeight(600).TextColor(t.Foreground).Grow(1)
+			ui.Text(c, a.tr("Add a machine")).FontSize(a.fontSize(15)).FontWeight(600).TextColor(t.Foreground).Grow(1)
 			ui.Text(c, "Esc").FontSize(a.fontSize(11)).TextColor(t.Dim)
 		})
-		ui.Text(c, "A VPS, a Mac mini, a box at home: Herdr reaches it over ssh, and agents there keep running while your laptop sleeps.").
+		ui.Text(c, a.tr("A VPS, a Mac mini, a box at home: Herdr reaches it over ssh, and agents there keep running while your laptop sleeps.")).
 			FontSize(a.fontSize(12.8)).TextColor(t.Muted).Wrap().Padding(6, 0, 0, 0)
-		label := "From your ssh config"
+		label := a.tr("From your ssh config")
 		if st.loaded && len(st.hosts) == 0 {
-			label = "Your ssh config lists no hosts"
+			label = a.tr("Your ssh config lists no hosts")
 		}
 		ui.Text(c, label).FontSize(a.fontSize(11.5)).FontWeight(500).TextColor(t.Dim).Padding(16, 0, 6, 0)
 		ui.Scroll(c).Height(float32(max(rows, 1) * 40)).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				if !st.loaded {
 					ui.Row(c).Height(40).PaddingX(10).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, "Reading ~/.ssh/config…").FontSize(a.fontSize(12.5)).TextColor(t.Dim)
+						ui.Text(c, a.tr("Reading ~/.ssh/config…")).FontSize(a.fontSize(12.5)).TextColor(t.Dim)
 					})
 					return
 				}
 				for _, h := range st.hosts {
-					a.machineRow(c, h.Alias, h.Alias, sshSub(h), st.item[h.Alias])
+					a.machineRow(c, h.Alias, h.Alias, a.sshSub(h), st.item[h.Alias])
 				}
 			})
 		})
-		ui.Text(c, "Or type how ssh reaches it").FontSize(a.fontSize(11.5)).FontWeight(500).TextColor(t.Dim).Padding(14, 0, 6, 0)
+		ui.Text(c, a.tr("Or type how ssh reaches it")).FontSize(a.fontSize(11.5)).FontWeight(500).TextColor(t.Dim).Padding(14, 0, 6, 0)
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			field := ui.Row(c).Grow(1).Height(34).PaddingX(10).Radius(8).Border(1, t.Input).
 				Background(t.Background).AlignItems(ui.Center)
@@ -220,16 +232,16 @@ func (a *App) machineAddOverlay(c *ui.Context) {
 					a.addMachine(a.mach.query)
 				}
 			})
-			a.smallButton(c, "Add", func() { a.addMachine(a.mach.query) })
+			a.smallButton(c, a.tr("Add"), func() { a.addMachine(a.mach.query) })
 		})
 		if msg := st.item[st.query]; msg != "" {
 			text := msg
 			color := t.Blocked
 			if msg == "adding" {
-				text = "Connecting…"
+				text = a.tr("Connecting…")
 				color = t.Muted
 			} else if msg == "terminal" {
-				text = "Waiting in its terminal"
+				text = a.tr("Waiting in its terminal")
 				color = t.Blocked
 			}
 			ui.Text(c, text).FontSize(a.fontSize(12)).TextColor(color).Padding(8, 0, 0, 0).Wrap()
@@ -238,12 +250,12 @@ func (a *App) machineAddOverlay(c *ui.Context) {
 }
 
 // sshSub is the "user@hostname" under a config alias.
-func sshSub(h sshHost) string {
+func (a *App) sshSub(h sshHost) string {
 	if h.User != "" || h.Hostname != "" {
 		return strings.TrimPrefix(h.User+"@"+h.Hostname, "@")
 	}
 	if len(h.Aliases) > 0 {
-		return "also " + strings.Join(h.Aliases, ", ")
+		return a.tr("also %s", strings.Join(h.Aliases, ", "))
 	}
 	return ""
 }
@@ -269,14 +281,14 @@ func (a *App) machineRow(c *ui.Context, target, label, sub, state string) {
 		case added:
 			ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
 				a.icon(c, "circle-check", 13, t.Status("idle"))
-				ui.Text(c, "Added").FontSize(a.fontSize(12)).TextColor(t.Status("idle"))
+				ui.Text(c, a.tr("Added")).FontSize(a.fontSize(12)).TextColor(t.Status("idle"))
 			})
 		case state == "adding":
-			ui.Text(c, "Connecting…").FontSize(a.fontSize(12)).TextColor(t.Muted)
+			ui.Text(c, a.tr("Connecting…")).FontSize(a.fontSize(12)).TextColor(t.Muted)
 		case state == "terminal":
-			ui.Text(c, "Waiting in its terminal").FontSize(a.fontSize(12)).TextColor(t.Blocked)
+			ui.Text(c, a.tr("Waiting in its terminal")).FontSize(a.fontSize(12)).TextColor(t.Blocked)
 		default:
-			a.smallButton(c, "Add", func() { a.addMachine(target) })
+			a.smallButton(c, a.tr("Add"), func() { a.addMachine(target) })
 		}
 	})
 	if added || state == "adding" || state == "terminal" {
@@ -317,7 +329,7 @@ func (a *App) machineTerminal(c *ui.Context, st machineAddState) {
 			Background(t.Chrome)
 		head.Children(func() {
 			a.icon(c, "server", 14, t.Muted)
-			ui.Text(c, fmt.Sprintf("Adding %s: answer it here", st.target)).FontSize(a.fontSize(12.5)).TextColor(t.Muted).Grow(1)
+			ui.Text(c, a.tr("Adding %s: answer it here", st.target)).FontSize(a.fontSize(12.5)).TextColor(t.Muted).Grow(1)
 			close := ui.Box(c).Size(22, 22).Radius(6).Center()
 			if close.Hovered() {
 				close.Background(t.Hover)
@@ -325,16 +337,35 @@ func (a *App) machineTerminal(c *ui.Context, st machineAddState) {
 			close.Cursor(ui.CursorPointer)
 			close.Children(func() { a.icon(c, "close", 12, t.Dim) })
 			if close.Clicked() {
-				a.mu.Lock()
-				a.mach.term = ""
-				a.mach.target = ""
-				a.mu.Unlock()
 				a.CloseOverlay()
 			}
 		})
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		ui.Box(c).Grow(1).FillWidth().Background(t.Background).Children(func() {
-			a.terminalView(c, herdr.PaneInfo{Pane: "machine-add", Terminal: st.term})
+			if term := a.terminalFor(herdr.PaneInfo{Pane: "machine-add", Terminal: st.term}); term != nil {
+				view := terminal.View(c, term).Fill()
+				if a.focusTerm != term {
+					a.focusTerm = term
+					view.Focus()
+				}
+			}
 		})
+		if record := a.S.Terminal(st.term); record != nil && !record.Live() {
+			ui.Row(c).Height(36).FillWidth().PaddingX(12).Gap(8).AlignItems(ui.Center).Children(func() {
+				message := a.tr("The add command finished. Check its output above.")
+				if record.ExitCode != nil && *record.ExitCode != 0 {
+					message = a.tr("Could not add %s (exit %d).", st.target, *record.ExitCode)
+				}
+				ui.Text(c, message).FontSize(a.fontSize(12)).TextColor(t.Blocked).Grow(1)
+				a.smallButton(c, a.tr("Back"), func() {
+					a.mu.Lock()
+					delete(a.mach.item, st.target)
+					a.mach.term, a.mach.target = "", ""
+					a.mu.Unlock()
+					a.focusTerm = nil
+					a.Repaint()
+				})
+			})
+		}
 	})
 }
