@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "out": "build",
   "icon": "resources/icon.png",
+  "linux": {
+    "depends": ["libnotify-bin", "libnotify4"]
+  },
   "macos": {
     "minimumSystemVersion": "13.0"
   }

@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -97,11 +98,14 @@ func (a *App) showAgentAlert(ag herdr.Agent) {
 }
 
 func sendSystemNotification(opts mygo.NotificationOptions) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	if runtime.GOOS != "darwin" {
+		return sendDesktopNotification(ctx, runtime.GOOS, opts)
+	}
 	if !mygo.NotificationsSupported() {
 		return fmt.Errorf("system notifications require a packaged app; run go tool mygo dev or go tool mygo build")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
 	return mygo.NewNotification(opts).ShowContext(ctx)
 }
 
