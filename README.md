@@ -31,16 +31,20 @@ go run .
 `herdr-core` keeps running when the window closes, exactly as with the
 original app: close the window, your agents keep working.
 
-To build an app bundle that also runs on a machine without `hc`, first stage
-the core for the target, then build:
+To build a self-contained app bundle, run MyGo's normal build command:
 
 ```sh
-go run ./cmd/prepare-hc -platform darwin/arm64
 go tool mygo build -platform darwin/arm64
 ```
 
 Use the matching platform on other machines, such as `windows/amd64` or
-`linux/amd64`. The staging command downloads the pinned upstream release in
+`linux/amd64`. The `buildCommand` in `mygo.json` automatically stages the
+pinned core releases for all five supported targets before MyGo packages the
+app, including builds invoked through `scripts/build-all.sh`. A download,
+checksum or extraction failure stops the build instead of shipping an app
+without its core. No separate staging command is needed.
+
+The staging tool uses the upstream release pinned in
 [cmd/prepare-hc/release.json](cmd/prepare-hc/release.json), checks the archive's
 SHA-256, and extracts it to `resources/<os>-<arch>/bin/`. MyGo automatically
 copies those files into the target app: `Contents/Resources/bin/` in a macOS
@@ -55,14 +59,13 @@ at app startup; it is not downloaded or installed into the user's system.
 New cores inherit the bundled CLI directory on `PATH`, so their terminals can
 also run `hc`. Downloaded resources are ignored by git. To update the bundled
 core, update the version, URLs and checksums in `release.json` from the upstream
-versioned manifest, then stage and rebuild.
+versioned manifest, then rebuild.
 
 Upstream publishes macOS and Linux builds for arm64 and amd64, and Windows
 for amd64 only. Staging `windows/arm64` fails explicitly because there is no
-native upstream release. To stage and build all five supported targets:
+native upstream release. To build all five supported targets:
 
 ```sh
-go run ./cmd/prepare-hc
 go tool mygo build \
   -platform darwin/arm64,darwin/amd64,windows/amd64,linux/arm64,linux/amd64
 ```
@@ -74,7 +77,6 @@ To build all five supported targets (macOS and Linux for arm64 and amd64,
 Windows for amd64) in one run:
 
 ```sh
-go run ./cmd/prepare-hc
 ./scripts/build-all.sh
 ```
 
@@ -97,10 +99,12 @@ default; distribution with Developer ID signing and notarization requires
 configuring those in MyGo.
 
 These are cross-compiled builds; running each app requires its target OS. The
-script builds the UI and packages; stage the matching core resources first for
-a self-contained app. The staging command and build script above cover the
-same five targets. Windows arm64 packaging is not supported. Without staged
-resources, the app needs an installed `hc`.
+script builds the UI and packages with the matching core resources included
+automatically. Windows arm64 packaging is not supported. Builds require network
+access to the pinned releases. `-skip-build-command` explicitly bypasses core
+staging; use it only when the required resources have already been prepared
+with `go run ./cmd/prepare-hc`. Plain `go run .` and `go tool mygo dev` still
+need an installed core or manually staged development bundle.
 Additional MyGo build flags can be passed through, for example
 `./scripts/build-all.sh -o build/release` or
 `./scripts/build-all.sh -skip-dmg -skip-installer` to omit DMG and Windows
