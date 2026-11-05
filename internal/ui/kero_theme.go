@@ -9,6 +9,19 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+// windowFrame paints the wash and glow behind the window's content, as in Kero.
+func (t *Theme) windowFrame(c *ui.Context) ui.Element {
+	frame := ui.Row(c).Fill().Background(t.Canvas).Font(UIFont).AlignItems(ui.Start)
+	if len(t.Backdrop.Stops) > 0 {
+		c.Root().LinearGradient(t.Backdrop)
+	}
+	if len(t.Glow.Stops) > 0 {
+		// Absolute children paint after the panes and would tint their text.
+		frame.LinearGradient(t.Glow)
+	}
+	return frame
+}
+
 // keroThemes keeps Kero's lowercase names distinct from Ghostty's names.
 var keroThemes = []string{"petal", "mist", "meadow", "dusk", "tide", "apricot", "aurora", "dune", "neutral", "plain"}
 

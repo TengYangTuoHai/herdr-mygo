@@ -188,15 +188,8 @@ func (a *App) View(c *ui.Context) {
 	// the pointer in the frame it moves.
 	a.resizeHandle(c)
 	a.paneDragged, a.paneDrag = a.paneDrag, false
-	frame := ui.Row(c).Fill().Background(t.Canvas).Font(UIFont).AlignItems(ui.Start)
-	if len(t.Backdrop.Stops) > 0 {
-		frame.LinearGradient(t.Backdrop)
-	}
+	frame := t.windowFrame(c)
 	frame.Children(func() {
-		if len(t.Glow.Stops) > 0 {
-			// The decorative layer covers the frame, so let clicks reach its controls.
-			ui.Box(c).Absolute().Fill().LinearGradient(t.Glow).PassThrough()
-		}
 		a.sidebar(c)
 		if a.sidebarShown > 0 {
 			ui.Box(c).Width(1).FillHeight().Background(t.Border)
