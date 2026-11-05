@@ -88,8 +88,12 @@ func runFullscreenCore() {
 		switch req.Method {
 		case "doc.get":
 			result = map[string]any{"version": 1, "value": doc}
-		case "events.subscribe":
-			result = map[string]any{"channel": 1, "terminals": []any{}}
+		case "terminal.list", "events.subscribe":
+			terminals := []any{}
+			if os.Getenv("TAB_CLOSE_TEST_BUSY") == "1" {
+				terminals = append(terminals, &herdr.Terminal{Address: "tfull", State: "live", Argv: []string{"sleep", "60"}})
+			}
+			result = map[string]any{"channel": 1, "terminals": terminals}
 		case "terminal.attach":
 			channel++
 			result = map[string]any{"channel": channel}
