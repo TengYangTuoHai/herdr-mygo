@@ -133,12 +133,14 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
   for terminals), with editable sizes from 8 to 40. Interface type updates
   across the window; terminal type updates open panes and peek without
   reconnecting. Font choices, sizes and window zoom persist in `settings.json`
-- Alerts follow agent status reports: Done and Needs you show a toast for
-  agents in another space, with optional sound. Repeated reports and the
+- Alerts follow agent status reports: Done and Needs you send system notifications
+  for agents in another space, with optional sound. On macOS, run
+  `go tool mygo dev` or the app from `go tool mygo build` for notifications;
+  the first alert asks for notification permission. Repeated reports and the
   initial session snapshot stay quiet. Glass and Ping are built-in chimes;
   either event can use a custom mono/stereo WAV file (up to 10 seconds and
   10 MB), previewed from Settings. By agent mutes sound for a program while
-  keeping its toasts. Sound choices and per-agent mutes persist in
+  keeping its system notifications. Sound choices and per-agent mutes persist in
   `settings.json`; disabling Play a sound keeps notifications enabled.
 - The app keeps its own files, apart from herdr-app's, under
   `~/.config/herdr-mygo`: `settings.json` written as a setting changes, the

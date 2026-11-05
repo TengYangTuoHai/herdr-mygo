@@ -54,8 +54,8 @@ var settingKeywords = map[string]string{
 	"Clipboard":        "copy paste",
 	"Minimum contrast": "contrast readability",
 	"Machines":         "ssh host server remote",
-	"Done":             "alert sound toast finish complete",
-	"Needs you":        "alert sound toast approval question",
+	"Done":             "alert sound notification finish complete",
+	"Needs you":        "alert sound notification approval question",
 	"Play a sound":     "sound audio alert",
 	"Done sound":       "sound audio alert",
 	"Needs you sound":  "sound audio alert",
@@ -103,7 +103,7 @@ func (a *App) settingsEntries() []settingsEntry {
 
 		entry("machines", "Machines", "Add, connect and remove the computers Herdr reaches over ssh.", "Manage"),
 
-		entry("alerts", "Done", "A sound and a toast when an agent finishes while you are elsewhere.", onOff(s.AlertDone)),
+		entry("alerts", "Done", "A system notification, with optional sound, when an agent finishes while you are elsewhere.", onOff(s.AlertDone)),
 		entry("alerts", "Needs you", "When an agent asks a question or waits for approval.", onOff(s.AlertNeeds)),
 		entry("alerts", "Play a sound", "Use the built-in sounds, or choose your own files.", onOff(s.AlertSound)),
 		entry("alerts", "Done sound", "Plays when an agent finishes.", alertSoundLabel(s.DoneSound)),
@@ -1251,10 +1251,10 @@ func (a *App) settingsAddMachineRow(c *ui.Context) {
 // settingsAlerts is the Alerts section.
 func (a *App) settingsAlerts(c *ui.Context) {
 	t := a.T
-	a.settingsHead(c, "Alerts", "When an agent finishes or needs you, Herdr can play a sound and post a toast.")
+	a.settingsHead(c, "Alerts", "When an agent finishes or needs you, Herdr can send a system notification and play a sound.")
 
 	a.settingsCard(c, func() {
-		a.settingsRow(c, "Done", "A sound and a toast when an agent finishes while you are elsewhere.", func() {
+		a.settingsRow(c, "Done", "A system notification, with optional sound, when an agent finishes while you are elsewhere.", func() {
 			ui.Box(c).Label("Done alerts").Children(func() { a.settingsToggle(c, &a.settings.AlertDone) })
 		})
 		a.settingsDivider(c)
@@ -1293,9 +1293,9 @@ func (a *App) settingsAlerts(c *ui.Context) {
 		}
 	})
 
-	note := "Alerts appear only for agents in another space. Muting an agent turns off its sound, while keeping toasts."
+	note := "Alerts appear only for agents in another space. Muting an agent turns off its sound, while keeping system notifications."
 	if !soundOn {
-		note = "Sound is off. Toasts still appear when an agent in another space finishes or needs you."
+		note = "Sound is off. System notifications still appear when an agent in another space finishes or needs you."
 	}
 	a.settingsNote(c, "bell", note)
 }

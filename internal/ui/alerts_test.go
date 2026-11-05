@@ -10,8 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/audio"
 	myui "github.com/egoist/mygo/ui"
 
@@ -72,7 +74,7 @@ func TestAlertPreferencesSurviveLaunch(t *testing.T) {
 	}
 }
 
-func TestAgentAlertSettingsGateToastAndSound(t *testing.T) {
+func TestAgentAlertSettingsGateNotificationAndSound(t *testing.T) {
 	for _, tc := range []struct {
 		name, status              string
 		done, needs, sound, muted bool
@@ -88,27 +90,49 @@ func TestAgentAlertSettingsGateToastAndSound(t *testing.T) {
 		{"working", "working", true, true, true, false, 0, 0, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			app := NewApp(nil, ThemeByName("graphite"))
-			app.settings.AlertDone, app.settings.AlertNeeds, app.settings.AlertSound = tc.done, tc.needs, tc.sound
-			app.settings.MutedAgents["pi"] = tc.muted
-			var sounds []string
-			app.alerts.play = func(name string) error { sounds = append(sounds, name); return nil }
-			app.showAgentAlert(herdr.Agent{Address: "t1", Title: "Working session", SpaceName: "Project", Status: tc.status,
-				Program: herdr.ProgramInfo{Key: "pi", Name: "Pi"}})
-			if got := toastSnapshot(app); len(got) != tc.wantNotes || len(sounds) != tc.wantSounds {
-				t.Fatalf("notes = %+v, sounds = %v", got, sounds)
-			}
-			if len(sounds) > 0 && sounds[0] != tc.wantSound {
-				t.Fatalf("sound = %q, want %q", sounds[0], tc.wantSound)
-			}
+			synctest.Test(t, func(t *testing.T) {
+				app := NewApp(nil, ThemeByName("graphite"))
+				app.settings.AlertDone, app.settings.AlertNeeds, app.settings.AlertSound = tc.done, tc.needs, tc.sound
+				app.settings.MutedAgents["pi"] = tc.muted
+				var sounds []string
+				var notifications []mygo.NotificationOptions
+				app.alerts.notify = func(opts mygo.NotificationOptions) error {
+					notifications = append(notifications, opts)
+					return nil
+				}
+				app.alerts.play = func(name string) error { sounds = append(sounds, name); return nil }
+				app.showAgentAlert(herdr.Agent{Address: "t1", Title: "Working session", SpaceName: "Project", Status: tc.status,
+					Program: herdr.ProgramInfo{Key: "pi", Name: "Pi"}})
+				synctest.Wait()
+				if len(notifications) != tc.wantNotes || len(sounds) != tc.wantSounds || len(toastSnapshot(app)) != 0 {
+					t.Fatalf("notifications = %+v, sounds = %v, toasts = %+v", notifications, sounds, toastSnapshot(app))
+				}
+				if len(notifications) > 0 {
+					title := "Done"
+					if tc.status == "blocked" {
+						title = "Needs you"
+					}
+					if got := notifications[0]; got.Title != title+" · Working session" || got.Body != "Project" || !got.Silent {
+						t.Fatalf("notification content or system sound = %+v", got)
+					}
+				}
+				if len(sounds) > 0 && sounds[0] != tc.wantSound {
+					t.Fatalf("sound = %q, want %q", sounds[0], tc.wantSound)
+				}
+			})
 		})
 	}
-	app := NewApp(nil, ThemeByName("graphite"))
-	app.alerts.play = func(string) error { return errors.New("missing custom sound") }
-	app.showAgentAlert(herdr.Agent{Status: "done", Title: "Agent"})
-	if notes := toastSnapshot(app); len(notes) != 2 || notes[1].Title != "Cannot play sound" {
-		t.Fatalf("playback failure hid the completion or its error: %+v", notes)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		app := NewApp(nil, ThemeByName("graphite"))
+		notified := false
+		app.alerts.notify = func(mygo.NotificationOptions) error { notified = true; return nil }
+		app.alerts.play = func(string) error { return errors.New("missing custom sound") }
+		app.showAgentAlert(herdr.Agent{Status: "done", Title: "Agent"})
+		synctest.Wait()
+		if notes := toastSnapshot(app); !notified || len(notes) != 1 || notes[0].Title != "Cannot play sound" {
+			t.Fatalf("playback failure hid the notification or its error: notified = %v, notes = %+v", notified, notes)
+		}
+	})
 }
 
 func TestAlertSoundControlsPreviewSelectChooseAndSave(t *testing.T) {
@@ -249,20 +273,60 @@ func TestCustomizeAgentSoundsPersistsAndKeepsOtherAgentsOn(t *testing.T) {
 	}
 }
 
-func TestAgentAlertOverSettingsCanBeDismissed(t *testing.T) {
+func TestAgentNotificationDoesNotBlockSettings(t *testing.T) {
 	RegisterFonts()
 	app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
 	app.settings.Section, app.overlay = "alerts", "settings"
 	app.settings.AlertSound = false
+	authorized := make(chan struct{})
+	delivered := make(chan mygo.NotificationOptions, 1)
+	app.alerts.notify = func(opts mygo.NotificationOptions) error {
+		<-authorized
+		delivered <- opts
+		return nil
+	}
 	app.showAgentAlert(herdr.Agent{Status: "done", Title: strings.Repeat("Long session title ", 8), SpaceName: "Background project"})
 	tt := myui.NewTester(app.View, 1280, 820)
 	tt.Frame()
-	if err := tt.Click("Dismiss notification"); err != nil {
+	if err := tt.Click("Done alerts"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if len(toastSnapshot(app)) != 0 || app.overlay != "settings" {
-		t.Fatalf("notification was hidden behind Settings: %v, overlay %q", toastSnapshot(app), app.overlay)
+	close(authorized)
+	if app.settings.AlertDone || len(toastSnapshot(app)) != 0 || app.overlay != "settings" {
+		t.Fatalf("settings blocked or agent toast shown: notes = %v, overlay = %q", toastSnapshot(app), app.overlay)
+	}
+	select {
+	case notification := <-delivered:
+		if notification.Body != "Background project" {
+			t.Fatalf("notification content = %+v", notification)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("notification not delivered after authorization")
+	}
+}
+
+func TestAgentNotificationFailureIsActionable(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		body string
+	}{
+		{"denied", mygo.ErrNotificationsDenied, "Allow Herdr notifications in system notification settings."},
+		{"delivery failed", errors.New("notification service unavailable"), "notification service unavailable"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				app := NewApp(nil, ThemeByName("graphite"))
+				app.settings.AlertSound = false
+				app.alerts.notify = func(mygo.NotificationOptions) error { return tc.err }
+				app.showAgentAlert(herdr.Agent{Status: "blocked", Title: "Agent"})
+				synctest.Wait()
+				if notes := toastSnapshot(app); len(notes) != 1 || notes[0].Title != "Cannot show system notification" || notes[0].Body != tc.body {
+					t.Fatalf("delivery failure = %+v", notes)
+				}
+			})
+		})
 	}
 }
 
@@ -296,17 +360,12 @@ func TestAlertsScreenshots(t *testing.T) {
 		{"alerts", "graphite", false, false},
 		{"sound-off", "paper", true, false},
 		{"by-agent", "graphite", false, true},
-		{"notification", "graphite", false, false},
 	} {
 		app := NewApp(&herdr.Session{}, ThemeByName(tc.theme))
 		app.settings.Section, app.overlay = "alerts", "settings"
 		app.settings.AlertSound = !tc.off
 		app.alerts.customize = tc.customize
 		app.settings.MutedAgents["codex"] = tc.customize
-		if tc.name == "notification" {
-			app.alerts.play = func(string) error { return nil }
-			app.showAgentAlert(herdr.Agent{Status: "blocked", Title: strings.Repeat("Session title ", 8), SpaceName: "Background project"})
-		}
 		tt := myui.NewTester(app.View, 1280, 820)
 		tt.SetScale(2)
 		tt.Frame()

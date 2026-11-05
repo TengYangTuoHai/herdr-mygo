@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -8,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/audio"
@@ -20,8 +23,9 @@ type alertState struct {
 	customize bool
 	sounds    map[string]*audio.Sound
 	// The native boundaries are replaceable in control tests.
-	play func(string) error
-	pick func() ([]string, error)
+	play   func(string) error
+	pick   func() ([]string, error)
+	notify func(mygo.NotificationOptions) error
 }
 
 func validAlertSound(name string) bool {
@@ -71,10 +75,34 @@ func (a *App) showAgentAlert(ag herdr.Agent) {
 	if body == "" {
 		body = ag.Program.Name
 	}
-	a.toast(title+" · "+name, body, "info")
+	notify := a.alerts.notify
+	if notify == nil {
+		notify = sendSystemNotification
+	}
+	// Authorization can wait for the user. Keep it off the UI thread and
+	// leave sound playback governed by the existing app preferences.
+	go func() {
+		err := notify(mygo.NotificationOptions{Title: title + " · " + name, Body: body, Silent: true})
+		if err != nil {
+			message := err.Error()
+			if errors.Is(err, mygo.ErrNotificationsDenied) {
+				message = "Allow Herdr notifications in system notification settings."
+			}
+			a.toast("Cannot show system notification", message, "error")
+		}
+	}()
 	if a.settings.AlertSound && !a.settings.MutedAgents[alertAgentKey(ag.Program)] {
 		a.previewAlertSound(sound)
 	}
+}
+
+func sendSystemNotification(opts mygo.NotificationOptions) error {
+	if !mygo.NotificationsSupported() {
+		return fmt.Errorf("system notifications require a packaged app; run go tool mygo dev or go tool mygo build")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	return mygo.NewNotification(opts).ShowContext(ctx)
 }
 
 func (a *App) previewAlertSound(name string) {
