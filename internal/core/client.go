@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -95,9 +94,14 @@ type Client struct {
 // Connect starts `hc connect` and switches it to framed mode.
 func Connect(bin string) (*Client, error) {
 	if bin == "" {
-		bin = findHC()
+		var err error
+		bin, err = findHC()
+		if err != nil {
+			return nil, err
+		}
 	}
 	cmd := exec.Command(bin, "connect")
+	cmd.Env = hcEnvironment(cmd.Path)
 	cmd.Stderr = os.Stderr
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -141,21 +145,6 @@ func Connect(bin string) (*Client, error) {
 	go c.writeLoop()
 	go c.readLoop(reader)
 	return c, nil
-}
-
-// findHC looks for herdr-core where the Herdr app looks: PATH, then
-// ~/.local/bin.
-func findHC() string {
-	if p, err := exec.LookPath("hc"); err == nil {
-		return p
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		p := filepath.Join(home, ".local", "bin", "hc")
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return "hc"
 }
 
 func (c *Client) writeLoop() {

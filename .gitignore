@@ -1,2 +1,7 @@
 build/
 .DS_Store
+# Downloaded core releases, staged by go run ./cmd/prepare-hc.
+/resources/darwin-*/bin/
+/resources/linux-*/bin/
+/resources/windows-*/bin/
+/resources/*/.hc-*/
