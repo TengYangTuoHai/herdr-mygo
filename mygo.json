@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "out": "build",
   "icon": "resources/icon.png",
+  "buildCommand": "go run ./cmd/prepare-hc",
   "macos": {
     "minimumSystemVersion": "13.0"
   }
