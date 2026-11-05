@@ -9,6 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"herdr-mygo/internal/gitcmd"
 	"herdr-mygo/internal/herdr"
 )
 
@@ -375,8 +376,7 @@ func (a *App) changesPanelView(c *ui.Context) {
 // gitText runs one git command for a folder, here or on its machine.
 func (a *App) gitText(on, root string, args ...string) (string, error) {
 	if on == "" {
-		base := append([]string{"git", "-C", root}, args...)
-		out, err := exec.Command(base[0], base[1:]...).Output()
+		out, err := gitcmd.Output(root, args...)
 		return string(out), err
 	}
 	argv := append([]string{"git", "-C", root}, args...)

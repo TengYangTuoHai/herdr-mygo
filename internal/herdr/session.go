@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"herdr-mygo/internal/core"
+	"herdr-mygo/internal/gitcmd"
 )
 
 // tabView is what each screen keeps of a tab: its focus, zoom and history.
@@ -752,11 +752,11 @@ func (s *Session) readGit(on, dir string) {
 
 // gitOut runs one git command for a folder, on the machine that holds it.
 func (s *Session) gitOut(on, dir string, args ...string) (string, error) {
-	argv := append([]string{"git", "-C", dir}, args...)
 	if on == "" {
-		out, err := exec.Command(argv[0], argv[1:]...).Output()
+		out, err := gitcmd.Output(dir, args...)
 		return string(out), err
 	}
+	argv := append([]string{"git", "-C", dir}, args...)
 	res, err := s.Exec(on, "", argv, 15*time.Second)
 	if err != nil {
 		return "", err
