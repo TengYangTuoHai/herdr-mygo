@@ -22,6 +22,7 @@ type settingsEntry struct {
 	About       string
 	Value       string
 	Icon        string
+	SearchText  string
 }
 
 var (
@@ -45,6 +46,7 @@ var settingsSectionIcons = map[string]string{
 // settingKeywords are what a person might type to find a setting whose name
 // does not contain the word itself.
 var settingKeywords = map[string]string{
+	"Language":         "locale language translation 中文 日本語",
 	"Theme":            "appearance accent colors look",
 	"Appearance":       "theme light dark system mode",
 	"Accent":           "theme color colors highlight",
@@ -85,27 +87,29 @@ func (a *App) settingsEntries() []settingsEntry {
 	}
 	entry := func(section, title, about, value string) settingsEntry {
 		return settingsEntry{
-			Section: section, SectionName: settingsSectionNames[section],
-			Title: title, About: about, Value: value,
-			Icon: settingsSectionIcons[section],
+			Section: section, SectionName: a.tr(settingsSectionNames[section]),
+			Title: a.tr(title), About: a.tr(about), Value: value,
+			SearchText: title + " " + settingsSectionNames[section] + " " + settingKeywords[title],
+			Icon:       settingsSectionIcons[section],
 		}
 	}
 	return []settingsEntry{
-		entry("look", "Appearance", "System, or always light or dark.", pick(appearanceNames, s.Appearance)),
+		entry("look", "Language", "Follow the system, or choose a language.", a.languageName()),
+		entry("look", "Appearance", "System, or always light or dark.", a.tr(pick(appearanceNames, s.Appearance))),
 		entry("look", "Theme", "Colors for the chrome and every terminal.", themeLabel(a.currentThemeName())),
-		entry("look", "Accent", "Focus rings, selections and key hints.", accentLabel(s.Accent)),
+		entry("look", "Accent", "Focus rings, selections and key hints.", a.tr(accentLabel(s.Accent))),
 		entry("look", "Interface font", "The panels’ typeface and size.", fmt.Sprintf("%s %d", s.InterfaceFont, s.InterfaceSize)),
 		entry("look", "Terminal font", "Used by every pane, on every machine.", fmt.Sprintf("%s %d", s.TerminalFont, s.TerminalSize)),
 		entry("look", "Zoom", "Scales the whole window, terminals included.", fmt.Sprintf("%.0f%%", zoom*100)),
 
-		entry("terminal", "Clipboard", "Let terminal programs write the clipboard.", onOff(s.Clipboard)),
+		entry("terminal", "Clipboard", "Let terminal programs write the clipboard.", a.tr(onOff(s.Clipboard))),
 		entry("terminal", "Minimum contrast", "Raise terminal text contrast. 1.0 leaves program colors alone.", fmt.Sprintf("%.1f", s.MinContrast)),
 
-		entry("machines", "Machines", "Add, connect and remove the computers Herdr reaches over ssh.", "Manage"),
+		entry("machines", "Machines", "Add, connect and remove the computers Herdr reaches over ssh.", a.tr("Manage")),
 
-		entry("alerts", "Done", "A system notification, with optional sound, when an agent finishes while you are elsewhere.", onOff(s.AlertDone)),
-		entry("alerts", "Needs you", "When an agent asks a question or waits for approval.", onOff(s.AlertNeeds)),
-		entry("alerts", "Play a sound", "Use the built-in sounds, or choose your own files.", onOff(s.AlertSound)),
+		entry("alerts", "Done", "A system notification, with optional sound, when an agent finishes while you are elsewhere.", a.tr(onOff(s.AlertDone))),
+		entry("alerts", "Needs you", "When an agent asks a question or waits for approval.", a.tr(onOff(s.AlertNeeds))),
+		entry("alerts", "Play a sound", "Use the built-in sounds, or choose your own files.", a.tr(onOff(s.AlertSound))),
 		entry("alerts", "Done sound", "Plays when an agent finishes.", alertSoundLabel(s.DoneSound)),
 		entry("alerts", "Needs you sound", "Plays when an agent asks something.", alertSoundLabel(s.NeedsSound)),
 		entry("alerts", "By agent", "Turn a sound off for one agent without changing the rest.", a.agentSoundSummary()),
@@ -130,7 +134,7 @@ func (a *App) settingsResults() []settingsEntry {
 			hits = append(hits, scored{e, score + 10})
 			continue
 		}
-		haystack := strings.ToLower(e.SectionName + " " + settingKeywords[e.Title])
+		haystack := strings.ToLower(e.SectionName + " " + e.SearchText)
 		if score, ok := fuzzyScore(q, haystack); ok {
 			hits = append(hits, scored{e, score})
 		}
@@ -237,7 +241,7 @@ func (a *App) settingsHeader(c *ui.Context) {
 	t := a.T
 	ui.Row(c).Height(58).FillWidth().Padding(0, 16, 0, 22).Gap(12).
 		AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "Settings").FontSize(a.fontSize(15.5)).FontWeight(600).TextColor(t.Foreground)
+		ui.Text(c, a.tr("Settings")).FontSize(a.fontSize(15.5)).FontWeight(600).TextColor(t.Foreground)
 		ui.Spacer(c)
 		a.settingsSearchField(c)
 		close := ui.Box(c).Size(28, 28).Radius(7).Center()
@@ -263,7 +267,7 @@ func (a *App) settingsSearchField(c *ui.Context) {
 		field.Children(func() {
 			a.icon(c, "search", 14, t.Dim)
 			input := ui.TextInputBase(c, &a.settings.Search).Grow(1).FontSize(a.fontSize(12.5)).
-				TextColor(t.Foreground).Placeholder("Search settings").AutoFocus()
+				TextColor(t.Foreground).Placeholder(a.tr("Search settings")).AutoFocus()
 			input.HandleInput(func(ev ui.InputEvent) bool {
 				if ev.Kind != ui.InputKeyDown {
 					return false
@@ -296,7 +300,7 @@ func (a *App) settingsSearchField(c *ui.Context) {
 	field.Cursor(ui.CursorPointer)
 	field.Children(func() {
 		a.icon(c, "search", 14, t.Dim)
-		ui.Text(c, "Search settings").FontSize(a.fontSize(12.5)).TextColor(t.Dim).Grow(1)
+		ui.Text(c, a.tr("Search settings")).FontSize(a.fontSize(12.5)).TextColor(t.Dim).Grow(1)
 		a.settingsKeycap(c, "⌘F")
 	})
 	if field.Clicked() {
@@ -353,12 +357,12 @@ func (a *App) settingsNav(c *ui.Context) {
 			}
 		}
 
-		navGroup("App")
-		navRow("look", "Look", "sun")
-		navRow("terminal", "Terminal", "terminal")
+		navGroup(a.tr("App"))
+		navRow("look", a.tr("Look"), "sun")
+		navRow("terminal", a.tr("Terminal"), "terminal")
 		navGroup("Herdr")
-		navRow("machines", "Machines", "server")
-		navRow("alerts", "Alerts", "bell")
+		navRow("machines", a.tr("Machines"), "server")
+		navRow("alerts", a.tr("Alerts"), "bell")
 
 		ui.Spacer(c)
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
@@ -411,7 +415,7 @@ func (a *App) settingsSearchResults(c *ui.Context) {
 		Background(t.Popover).Border(1, t.Input).Shadow(0, 18, 50, 0, shadow).Clip()
 	pop.Children(func() {
 		ui.Row(c).FillWidth().Padding(10, 12, 7, 12).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, fmt.Sprintf("%d RESULTS", len(results))).FontSize(a.fontSize(10)).
+			ui.Text(c, a.tr("%d RESULTS", len(results))).FontSize(a.fontSize(10)).
 				FontWeight(600).LetterSpacing(0.5).TextColor(t.Dim)
 			ui.Spacer(c)
 			if a.settings.Search != "" {
@@ -419,7 +423,7 @@ func (a *App) settingsSearchResults(c *ui.Context) {
 			}
 		})
 		if len(results) == 0 {
-			ui.Text(c, fmt.Sprintf("Nothing matches %q.", a.settings.Search)).
+			ui.Text(c, a.tr("Nothing matches %q.", a.settings.Search)).
 				FontSize(a.fontSize(12.5)).TextColor(t.Dim).Padding(14, 12)
 		} else {
 			ui.Scroll(c).MaxHeight(288).FillWidth().Children(func() {
@@ -454,12 +458,12 @@ func (a *App) settingsSearchResults(c *ui.Context) {
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		ui.Row(c).FillWidth().Padding(7, 12).Gap(7).AlignItems(ui.Center).Children(func() {
 			a.settingsKeycap(c, "↑↓")
-			ui.Text(c, "move").FontSize(a.fontSize(10.5)).TextColor(t.Dim)
+			ui.Text(c, a.tr("move")).FontSize(a.fontSize(10.5)).TextColor(t.Dim)
 			a.settingsKeycap(c, "↵")
-			ui.Text(c, "open").FontSize(a.fontSize(10.5)).TextColor(t.Dim)
+			ui.Text(c, a.tr("open")).FontSize(a.fontSize(10.5)).TextColor(t.Dim)
 			ui.Spacer(c)
 			a.settingsKeycap(c, "esc")
-			ui.Text(c, "close").FontSize(a.fontSize(10.5)).TextColor(t.Dim)
+			ui.Text(c, a.tr("close")).FontSize(a.fontSize(10.5)).TextColor(t.Dim)
 		})
 	})
 }
@@ -590,7 +594,7 @@ func (a *App) settingsSegmentedOn(c *ui.Context, labels []string, value *int, on
 				if i == *value {
 					color = t.Foreground
 				}
-				ui.Text(c, label).FontSize(a.fontSize(12)).FontWeight(500).TextColor(color)
+				ui.Text(c, a.tr(label)).FontSize(a.fontSize(12)).FontWeight(500).TextColor(color)
 			})
 			if item.Clicked() {
 				*value = i
@@ -646,7 +650,7 @@ func (a *App) stepper(c *ui.Context, label string) {
 	t := a.T
 	ui.Row(c).Height(30).Padding(2).Radius(8).Background(Alpha(t.Foreground, 0.055)).
 		Gap(2).AlignItems(ui.Center).Children(func() {
-		minus := ui.ButtonBase(c.Key("zoom-out")).Width(26).Height(26).Radius(6).Center().Label("Zoom out").Cursor(ui.CursorPointer)
+		minus := ui.ButtonBase(c.Key("zoom-out")).Width(26).Height(26).Radius(6).Center().Label(a.tr("Zoom out")).Cursor(ui.CursorPointer)
 		if minus.Hovered() {
 			minus.Background(t.Hover)
 		}
@@ -656,7 +660,7 @@ func (a *App) stepper(c *ui.Context, label string) {
 		}
 		ui.Text(c, label).FontSize(a.fontSize(12.5)).TextColor(t.Foreground).Width(52).
 			TextAlign(ui.Center)
-		plus := ui.ButtonBase(c.Key("zoom-in")).Width(26).Height(26).Radius(6).Center().Label("Zoom in").Cursor(ui.CursorPointer)
+		plus := ui.ButtonBase(c.Key("zoom-in")).Width(26).Height(26).Radius(6).Center().Label(a.tr("Zoom in")).Cursor(ui.CursorPointer)
 		if plus.Hovered() {
 			plus.Background(t.Hover)
 		}
@@ -725,7 +729,7 @@ func (a *App) settingsDots(c *ui.Context) {
 	t := a.T
 	colors := []string{"#96b2d7", "#e5c07b", "#f0705f", "#a6bd91", "#b5a2ce"}
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		a.settingsLink(c, "Theme", func() { a.settings.Accent = ""; a.applyTheme() })
+		a.settingsLink(c, a.tr("Theme"), func() { a.settings.Accent = ""; a.applyTheme() })
 		for _, hex := range colors {
 			hex := hex
 			wrap := ui.Box(c).Size(24, 24).Radius(12).Center().Cursor(ui.CursorPointer)
@@ -746,14 +750,16 @@ func (a *App) settingsDots(c *ui.Context) {
 // settingsLook is the Look section.
 func (a *App) settingsLook(c *ui.Context) {
 	t := a.T
-	a.settingsHead(c, "Look", "Theme, accent and type. Everything applies as you change it.")
+	a.settingsHead(c, a.tr("Look"), a.tr("Theme, accent and type. Everything applies as you change it."))
 
 	a.settingsCard(c, func() {
-		a.settingsRow(c, "Appearance", "Follow the system, or always use light or dark.", func() {
+		a.settingsRow(c, a.tr("Language"), a.tr("Follow the system, or choose a language."), func() { a.settingsLanguage(c) })
+		a.settingsDivider(c)
+		a.settingsRow(c, a.tr("Appearance"), a.tr("Follow the system, or always use light or dark."), func() {
 			a.settingsSegmentedOn(c, appearanceNames, &a.settings.Appearance, a.setAppearance)
 		})
 		a.settingsDivider(c)
-		a.settingsRow(c, "Accent", "Focus rings, selections and key hints.", func() {
+		a.settingsRow(c, a.tr("Accent"), a.tr("Focus rings, selections and key hints."), func() {
 			a.settingsDots(c)
 		})
 	})
@@ -761,17 +767,17 @@ func (a *App) settingsLook(c *ui.Context) {
 	a.settingsThemeCard(c)
 
 	a.settingsCard(c, func() {
-		a.settingsRow(c, "Interface font", "The panels’ typeface and size.", func() {
+		a.settingsRow(c, a.tr("Interface font"), a.tr("The panels’ typeface and size."), func() {
 			a.settingsFont(c, &a.settings.InterfaceFont, &a.settings.InterfaceSize, false)
 		})
 		a.settingsDivider(c)
-		a.settingsRow(c, "Terminal font", "Used by every pane, on every machine.", func() {
+		a.settingsRow(c, a.tr("Terminal font"), a.tr("Used by every pane, on every machine."), func() {
 			a.settingsFont(c, &a.settings.TerminalFont, &a.settings.TerminalSize, true)
 		})
 		a.settingsDivider(c)
-		a.settingsRow(c, "Zoom", "Scales the whole window, terminals included.", func() {
+		a.settingsRow(c, a.tr("Zoom"), a.tr("Scales the whole window, terminals included."), func() {
 			a.stepper(c, fmt.Sprintf("%.0f%%", a.Zoom*100))
-			a.settingsLink(c, "Reset", func() { a.Zoom = 1; a.Repaint() })
+			a.settingsLink(c, a.tr("Reset"), func() { a.Zoom = 1; a.Repaint() })
 		})
 	})
 
@@ -779,21 +785,21 @@ func (a *App) settingsLook(c *ui.Context) {
 		a.icon(c, "file", 12, t.Dim)
 		ui.Text(c, a.SettingsPath()).Font(TerminalFont).FontSize(a.fontSize(10.5)).
 			TextColor(t.Muted)
-		ui.Text(c, "· saved as you go").FontSize(a.fontSize(11)).TextColor(t.Dim)
+		ui.Text(c, a.tr("· saved as you go")).FontSize(a.fontSize(11)).TextColor(t.Dim)
 	})
 }
 
 // settingsFont edits a family and size; terminal choices are monospaced.
 func (a *App) settingsFont(c *ui.Context, name *string, size *int, mono bool) {
 	t := a.T
-	label := "Interface font"
+	label := a.tr("Interface font")
 	if mono {
-		label = "Terminal font"
+		label = a.tr("Terminal font")
 	}
 	sel := ui.SelectBase(c.Key(label+"-family"), name)
 	sel.Trigger.Row().Height(30).Width(150).PaddingX(9).Gap(8).Radius(8).
 		Border(1, t.Border).Background(Alpha(t.Foreground, 0.045)).
-		AlignItems(ui.Center).Label(label + " family").Children(func() {
+		AlignItems(ui.Center).Label(a.tr("%s family", label)).Children(func() {
 		ui.Text(c, *name).FontSize(a.fontSize(12.5)).TextColor(t.Foreground).Grow(1).Ellipsis("…")
 		a.icon(c, "chevron-down", 12, t.Dim)
 	})
@@ -819,7 +825,7 @@ func (a *App) settingsFont(c *ui.Context, name *string, size *int, mono bool) {
 	style.Surface, style.SurfaceHover, style.SurfacePressed = Alpha(t.Foreground, 0.045), t.Hover, t.Hover
 	style.Border, style.Focus, style.Selection = t.Border, t.Accent, Alpha(t.Accent, 0.3)
 	ui.Themed(c, &style).Background(ui.Transparent).Children(func() {
-		input := ui.NumberInput(c.Key(label+"-size"), &value, 8, 40, 1).Label(label + " size")
+		input := ui.NumberInput(c.Key(label+"-size"), &value, 8, 40, 1).Label(a.tr("%s size", label))
 		input.OnChange(func() {
 			*size = int(value)
 			if mono {
@@ -841,13 +847,13 @@ func (a *App) settingsThemeCard(c *ui.Context) {
 	t := a.T
 	a.settingsCard(c, func() {
 		ui.Column(c).Padding(14, 16, 16, 16).Gap(14).Children(func() {
-			ui.Text(c, "Theme").FontSize(a.fontSize(13.5)).FontWeight(500).TextColor(t.Foreground)
-			ui.Text(c, "Choose colors for light and dark windows. Chrome and every terminal change together.").FontSize(a.fontSize(11.5)).TextColor(t.Dim).Wrap()
+			ui.Text(c, a.tr("Theme")).FontSize(a.fontSize(13.5)).FontWeight(500).TextColor(t.Foreground)
+			ui.Text(c, a.tr("Choose colors for light and dark windows. Chrome and every terminal change together.")).FontSize(a.fontSize(11.5)).TextColor(t.Dim).Wrap()
 			for _, dark := range []bool{false, true} {
-				label, picker := "Light windows", 1
+				label, picker := a.tr("Light windows"), 1
 				names := append([]string{"paper"}, keroThemes...)
 				if dark {
-					label, picker = "Dark windows", 2
+					label, picker = a.tr("Dark windows"), 2
 					names = append([]string{"graphite", "ink", "moss"}, keroThemes...)
 				}
 				ui.Text(c, label).FontSize(a.fontSize(12)).TextColor(t.Muted)
@@ -857,7 +863,7 @@ func (a *App) settingsThemeCard(c *ui.Context) {
 					}
 				})
 				name, _ := a.settings.themeFor(dark)
-				a.settingsRow(c, "Ghostty theme", "Built-in and installed Ghostty palettes.", func() {
+				a.settingsRow(c, a.tr("Ghostty theme"), a.tr("Built-in and installed Ghostty palettes."), func() {
 					a.settingsButton(c, themeLabel(name)+"  ⌄", false, false, func() {
 						if a.settings.ThemePicker == picker {
 							a.settings.ThemePicker = 0
@@ -893,9 +899,9 @@ func (a *App) settingsThemeTile(c *ui.Context, name string, dark bool) {
 	selected, _ := a.settings.themeFor(dark)
 	on := selected == name
 	key := fmt.Sprintf("theme-%v-%s", dark, name)
-	appearance := "light windows"
+	appearance := a.tr("light windows")
 	if dark {
-		appearance = "dark windows"
+		appearance = a.tr("dark windows")
 	}
 	col := ui.ButtonBase(c.Key(key)).Column().Width(104).Gap(6).Label(themeLabel(name) + ", " + appearance)
 	col.Children(func() {
@@ -937,10 +943,10 @@ func (a *App) settingsThemeTile(c *ui.Context, name string, dark bool) {
 func (a *App) settingsGhosttyPicker(c *ui.Context, dark bool) {
 	t := a.T
 	ui.Column(c).FillWidth().Gap(6).Padding(10).Radius(8).Border(1, t.Border).Background(t.Popover).Children(func() {
-		input := ui.TextInputBase(c.Key("ghostty-search"), &a.settings.ThemeSearch).FillWidth().Height(28).FontSize(a.fontSize(12)).TextColor(t.Foreground).Placeholder("Search Ghostty themes…").AutoFocus()
+		input := ui.TextInputBase(c.Key("ghostty-search"), &a.settings.ThemeSearch).FillWidth().Height(28).FontSize(a.fontSize(12)).TextColor(t.Foreground).Placeholder(a.tr("Search Ghostty themes…")).AutoFocus()
 		matches := ghosttyMatches(a.settings.ThemeSearch)
 		if len(matches) == 0 {
-			ui.Text(c, "No themes found").FontSize(a.fontSize(12)).TextColor(t.Dim)
+			ui.Text(c, a.tr("No themes found")).FontSize(a.fontSize(12)).TextColor(t.Dim)
 		}
 		ui.Scroll(c).FillWidth().Height(min(float32(len(matches))*28, 168)).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
@@ -978,33 +984,33 @@ func ghosttyMatches(query string) []string {
 // settingsTerminal is the Terminal section.
 func (a *App) settingsTerminal(c *ui.Context) {
 	t := a.T
-	a.settingsHead(c, "Terminal", "How panes behave, here and on every machine.")
+	a.settingsHead(c, a.tr("Terminal"), a.tr("How panes behave, here and on every machine."))
 
 	a.settingsCard(c, func() {
-		a.settingsRow(c, "Clipboard", "Let terminal programs write the clipboard.", func() {
+		a.settingsRow(c, a.tr("Clipboard"), a.tr("Let terminal programs write the clipboard."), func() {
 			a.settingsToggle(c, &a.settings.Clipboard)
 		})
 	})
 
 	a.settingsCard(c, func() {
-		a.settingsRow(c, "Minimum contrast", "1.0 leaves program colors alone. Raise it to steady light and dark text.", func() {
+		a.settingsRow(c, a.tr("Minimum contrast"), a.tr("1.0 leaves program colors alone. Raise it to steady light and dark text."), func() {
 			a.settingsSlider(c, &a.settings.MinContrast, 1, 21)
 		})
 	})
 
 	a.settingsCard(c, func() {
-		a.settingsRow(c, "herdr-core", "The background program that runs your terminals and agents.", func() {
+		a.settingsRow(c, "herdr-core", a.tr("The background program that runs your terminals and agents."), func() {
 			pill := ui.Box(c).Height(28).PaddingX(8).Radius(7).Border(1, t.Border).
 				Background(Alpha(t.Foreground, 0.045)).Center()
 			pill.Children(func() {
-				ui.Text(c, corePath()).Font(TerminalFont).FontSize(a.fontSize(11)).TextColor(t.Muted).
+				ui.Text(c, a.tr(corePath())).Font(TerminalFont).FontSize(a.fontSize(11)).TextColor(t.Muted).
 					Width(230).Ellipsis("…")
 			})
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				color := t.Dim
-				text := "Not running"
+				text := a.tr("Not running")
 				if a.S != nil {
-					color, text = t.Ansi[2], "Connected"
+					color, text = t.Ansi[2], a.tr("Connected")
 				}
 				ui.Box(c).Size(6, 6).Radius(3).Background(color)
 				ui.Text(c, text).FontSize(a.fontSize(11.5)).TextColor(t.Muted)
@@ -1076,7 +1082,7 @@ func (a *App) settingsTerminalPreview(c *ui.Context) {
 				for i := 0; i < 3; i++ {
 					ui.Box(c).Size(6, 6).Radius(3).Background(Alpha(t.Foreground, 0.15))
 				}
-				ui.Text(c, "Preview").FontSize(a.fontSize(10.5)).TextColor(t.Dim).Padding(0, 0, 0, 6)
+				ui.Text(c, a.tr("Preview")).FontSize(a.fontSize(10.5)).TextColor(t.Dim).Padding(0, 0, 0, 6)
 			})
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
 		ui.Column(c).Padding(10, 14).Gap(1).Children(func() {
@@ -1103,14 +1109,14 @@ func (a *App) termLine(c *ui.Context, prompt, body string, promptColor, bodyColo
 
 // settingsMachines is the Machines section.
 func (a *App) settingsMachines(c *ui.Context) {
-	a.settingsHead(c, "Machines", "Herdr reaches other computers over ssh. Their terminals and agents keep running there.")
+	a.settingsHead(c, a.tr("Machines"), a.tr("Herdr reaches other computers over ssh. Their terminals and agents keep running there."))
 
 	var machines []*herdr.Machine
 	if a.S != nil {
 		machines = a.S.Machines()
 	}
 	a.settingsCard(c, func() {
-		a.settingsMachineRow(c, "monitor", "This computer", "where this window runs", "connected", "", nil)
+		a.settingsMachineRow(c, "monitor", a.tr("This computer"), a.tr("where this window runs"), "connected", "", nil)
 		if len(machines) > 0 {
 			for _, m := range machines {
 				m := m
@@ -1132,7 +1138,7 @@ func (a *App) settingsMachines(c *ui.Context) {
 		a.settingsEmptyMachines(c)
 	}
 
-	a.settingsNote(c, "server", "A machine runs its own herdr-core, so its agents keep working when this Mac sleeps.")
+	a.settingsNote(c, "server", a.tr("A machine runs its own herdr-core, so its agents keep working when this Mac sleeps."))
 }
 
 // settingsEmptyMachines is the first-run Machines page.
@@ -1143,11 +1149,11 @@ func (a *App) settingsEmptyMachines(c *ui.Context) {
 			icon := ui.Box(c).Size(46, 46).Radius(12).Background(Alpha(t.Foreground, 0.055)).
 				Center()
 			icon.Children(func() { a.icon(c, "server", 20, t.Muted) })
-			ui.Text(c, "No other machines yet").FontSize(a.fontSize(13.5)).FontWeight(500).
+			ui.Text(c, a.tr("No other machines yet")).FontSize(a.fontSize(13.5)).FontWeight(500).
 				TextColor(t.Foreground)
-			ui.Text(c, "Add a server or a Mac from your ~/.ssh/config, or type how ssh reaches it. Its terminals and agents run there, and keep working when this Mac sleeps.").
+			ui.Text(c, a.tr("Add a server or a Mac from your ~/.ssh/config, or type how ssh reaches it. Its terminals and agents run there, and keep working when this Mac sleeps.")).
 				FontSize(a.fontSize(11.5)).TextColor(t.Dim).Wrap().TextAlign(ui.Center).MaxWidth(430)
-			a.settingsButton(c, "Add machine", true, false, func() {
+			a.settingsButton(c, a.tr("Add machine"), true, false, func() {
 				a.OpenOverlay("machine-add")
 			})
 		})
@@ -1172,7 +1178,7 @@ func (a *App) settingsMachineRow(c *ui.Context, icon, name, target, state, why s
 		})
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			ui.Box(c).Size(6, 6).Radius(3).Background(a.machineStateColor(state))
-			ui.Text(c, machineStateText(state)).FontSize(a.fontSize(11.5)).TextColor(t.Muted)
+			ui.Text(c, a.tr(machineStateText(state))).FontSize(a.fontSize(11.5)).TextColor(t.Muted)
 		})
 		if actions != nil {
 			actions()
@@ -1209,10 +1215,10 @@ func machineStateText(state string) string {
 // settingsMachineActions is Connect or Remove for one machine.
 func (a *App) settingsMachineActions(c *ui.Context, m *herdr.Machine) {
 	if m.Connected() {
-		a.settingsButton(c, "Remove", false, true, func() {
+		a.settingsButton(c, a.tr("Remove"), false, true, func() {
 			go func() {
 				if err := a.S.RemoveMachine(m.Name); err != nil {
-					a.toast("Cannot remove the machine", err.Error(), "error")
+					a.toast(a.tr("Cannot remove the machine"), err.Error(), "error")
 				}
 				a.S.RefreshMachines()
 				a.Repaint()
@@ -1220,10 +1226,10 @@ func (a *App) settingsMachineActions(c *ui.Context, m *herdr.Machine) {
 		})
 		return
 	}
-	a.settingsButton(c, "Connect", false, true, func() {
+	a.settingsButton(c, a.tr("Connect"), false, true, func() {
 		go func() {
 			if err := a.S.ConnectMachine(m.Name); err != nil {
-				a.toast("Cannot connect", err.Error(), "error")
+				a.toast(a.tr("Cannot connect"), err.Error(), "error")
 			}
 			a.Repaint()
 		}()
@@ -1241,9 +1247,9 @@ func (a *App) settingsAddMachineRow(c *ui.Context) {
 	row.Children(func() {
 		plus := ui.Box(c).Size(24, 24).Radius(7).Border(1, t.Input).Center()
 		plus.Children(func() { a.icon(c, "plus", 12, t.Muted) })
-		ui.Text(c, "Add machine").FontSize(a.fontSize(12.5)).TextColor(t.Foreground)
+		ui.Text(c, a.tr("Add machine")).FontSize(a.fontSize(12.5)).TextColor(t.Foreground)
 		ui.Spacer(c)
-		ui.Text(c, "From ~/.ssh/config or an address").FontSize(a.fontSize(11)).TextColor(t.Dim).
+		ui.Text(c, a.tr("From ~/.ssh/config or an address")).FontSize(a.fontSize(11)).TextColor(t.Dim).
 			Ellipsis("…")
 	})
 	if row.Clicked() {
@@ -1254,39 +1260,39 @@ func (a *App) settingsAddMachineRow(c *ui.Context) {
 // settingsAlerts is the Alerts section.
 func (a *App) settingsAlerts(c *ui.Context) {
 	t := a.T
-	a.settingsHead(c, "Alerts", "When an agent finishes or needs you, Herdr can send a system notification and play a sound.")
+	a.settingsHead(c, a.tr("Alerts"), a.tr("When an agent finishes or needs you, Herdr can send a system notification and play a sound."))
 
 	a.settingsCard(c, func() {
-		a.settingsRow(c, "Done", "A system notification, with optional sound, when an agent finishes while you are elsewhere.", func() {
-			ui.Box(c).Label("Done alerts").Children(func() { a.settingsToggle(c, &a.settings.AlertDone) })
+		a.settingsRow(c, a.tr("Done"), a.tr("A system notification, with optional sound, when an agent finishes while you are elsewhere."), func() {
+			ui.Box(c).Label(a.tr("Done alerts")).Children(func() { a.settingsToggle(c, &a.settings.AlertDone) })
 		})
 		a.settingsDivider(c)
-		a.settingsRow(c, "Needs you", "When an agent asks a question or waits for approval.", func() {
-			ui.Box(c).Label("Needs you alerts").Children(func() { a.settingsToggle(c, &a.settings.AlertNeeds) })
+		a.settingsRow(c, a.tr("Needs you"), a.tr("When an agent asks a question or waits for approval."), func() {
+			ui.Box(c).Label(a.tr("Needs you alerts")).Children(func() { a.settingsToggle(c, &a.settings.AlertNeeds) })
 		})
 	})
 
 	soundOn := a.settings.AlertSound
 	a.settingsCard(c, func() {
-		a.settingsRow(c, "Play a sound", "Use the built-in sounds, or choose a WAV file up to 10 seconds long.", func() {
-			ui.Box(c).Label("Play alert sounds").Children(func() { a.settingsToggle(c, &a.settings.AlertSound) })
+		a.settingsRow(c, a.tr("Play a sound"), a.tr("Use the built-in sounds, or choose a WAV file up to 10 seconds long."), func() {
+			ui.Box(c).Label(a.tr("Play alert sounds")).Children(func() { a.settingsToggle(c, &a.settings.AlertSound) })
 		})
 		a.settingsDivider(c)
-		a.settingsRowWhen(c, soundOn, "Done sound", "Plays when an agent finishes.", func() {
-			a.settingsSound(c, "Done sound", &a.settings.DoneSound, soundOn)
+		a.settingsRowWhen(c, soundOn, a.tr("Done sound"), a.tr("Plays when an agent finishes."), func() {
+			a.settingsSound(c, a.tr("Done sound"), &a.settings.DoneSound, soundOn)
 		})
 		a.settingsDivider(c)
-		a.settingsRowWhen(c, soundOn, "Needs you sound", "Plays when an agent asks something.", func() {
-			a.settingsSound(c, "Needs you sound", &a.settings.NeedsSound, soundOn)
+		a.settingsRowWhen(c, soundOn, a.tr("Needs you sound"), a.tr("Plays when an agent asks something."), func() {
+			a.settingsSound(c, a.tr("Needs you sound"), &a.settings.NeedsSound, soundOn)
 		})
 	})
 
 	a.settingsCard(c, func() {
-		a.settingsRow(c, "By agent", "Turn a sound off for one agent without changing the rest.", func() {
+		a.settingsRow(c, a.tr("By agent"), a.tr("Turn a sound off for one agent without changing the rest."), func() {
 			ui.Text(c, a.agentSoundSummary()).FontSize(a.fontSize(11.5)).TextColor(t.Muted)
-			label := "Customize  ›"
+			label := a.tr("Customize  ›")
 			if a.alerts.customize {
-				label = "Hide  ‹"
+				label = a.tr("Hide  ‹")
 			}
 			a.settingsLink(c, label, func() { a.alerts.customize = !a.alerts.customize; a.Repaint() })
 		})
@@ -1296,9 +1302,9 @@ func (a *App) settingsAlerts(c *ui.Context) {
 		}
 	})
 
-	note := "Alerts appear only for agents in another space. Muting an agent turns off its sound, while keeping system notifications."
+	note := a.tr("Alerts appear only for agents in another space. Muting an agent turns off its sound, while keeping system notifications.")
 	if !soundOn {
-		note = "Sound is off. System notifications still appear when an agent in another space finishes or needs you."
+		note = a.tr("Sound is off. System notifications still appear when an agent in another space finishes or needs you.")
 	}
 	a.settingsNote(c, "bell", note)
 }

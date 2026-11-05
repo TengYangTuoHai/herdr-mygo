@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/plugins/terminal"
@@ -96,11 +95,11 @@ func (a *App) findBar(c *ui.Context, key string, term *terminal.Terminal) {
 	t := a.T
 	bar := ui.Row(c.Key("terminal-find")).Absolute().Top(8).Right(8).
 		Width(390).MaxWidthPercent(96).Height(36).PaddingX(8).Gap(5).
-		AlignItems(ui.Center).Radius(8).Background(t.Popover).Border(1, t.Border).Label("Find in terminal")
+		AlignItems(ui.Center).Radius(8).Background(t.Popover).Border(1, t.Border).Label(a.tr("Find in terminal"))
 	bar.Children(func() {
 		a.icon(c, "search", 13, t.Dim)
 		input := ui.TextInputBase(c.Key("query"), &f.query).Grow(1).MinWidth(0).
-			FontSize(a.fontSize(13)).TextColor(t.Foreground).Placeholder("Find in terminal…").Label("Terminal search")
+			FontSize(a.fontSize(13)).TextColor(t.Foreground).Placeholder(a.tr("Find in terminal…")).Label(a.tr("Terminal search"))
 		if f.focus {
 			f.focus = false
 			a.focusTerm = term
@@ -117,16 +116,16 @@ func (a *App) findBar(c *ui.Context, key string, term *terminal.Terminal) {
 		switch {
 		case f.query == "":
 		case st.Total > 0:
-			count = fmt.Sprintf("%d of %d", st.Selected, st.Total)
+			count = a.tr("%d of %d", st.Selected, st.Total)
 		case st.Searching:
-			count = "Searching…"
+			count = a.tr("Searching…")
 		default:
-			count = "No matches"
+			count = a.tr("No matches")
 		}
 		ui.Text(c, count).FontSize(a.fontSize(11)).TextColor(t.Dim).SingleLine().Shrink(0)
-		a.findButton(c, "↑", "Next match (Enter)", term.SearchNext)
-		a.findButton(c, "↓", "Previous match (Shift+Enter)", term.SearchPrevious)
-		a.findButton(c, "✕", "Close terminal search (Escape)", a.closeFind)
+		a.findButton(c, "↑", a.tr("Next match (Enter)"), term.SearchNext)
+		a.findButton(c, "↓", a.tr("Previous match (Shift+Enter)"), term.SearchPrevious)
+		a.findButton(c, "✕", a.tr("Close terminal search (Escape)"), a.closeFind)
 	})
 	if bar.Shortcut(0, ui.KeyEscape) {
 		a.closeFind()

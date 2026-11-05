@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
 
@@ -80,12 +81,23 @@ var paletteGroupOrder = []string{"Tab", "Pane", "Space", "Layout", "Terminal", "
 
 // paletteRows returns the entries matching the query, in order.
 func (a *App) paletteRows() []paletteCommand {
+	commands := make([]paletteCommand, len(paletteCommands))
+	for i, command := range paletteCommands {
+		command.Keyword += " " + command.Title + " " + command.Group
+		if strings.HasPrefix(command.Title, "Theme: ") {
+			command.Title = a.tr("Theme: %s", strings.TrimPrefix(command.Title, "Theme: "))
+		} else {
+			command.Title = a.tr(command.Title)
+		}
+		command.Group = a.tr(command.Group)
+		commands[i] = command
+	}
 	q := strings.ToLower(strings.TrimSpace(a.palette.Query))
 	if q == "" {
 		var out []paletteCommand
 		for _, group := range paletteGroupOrder {
-			for _, cmd := range paletteCommands {
-				if cmd.Group == group {
+			for _, cmd := range commands {
+				if cmd.Group == a.tr(group) {
 					out = append(out, cmd)
 				}
 			}
@@ -98,7 +110,7 @@ func (a *App) paletteRows() []paletteCommand {
 		score int
 	}
 	var hits []scored
-	for _, cmd := range paletteCommands {
+	for _, cmd := range commands {
 		if score, ok := fuzzyScore(q, strings.ToLower(cmd.Title)); ok {
 			hits = append(hits, scored{cmd, score + 10})
 			continue
@@ -141,7 +153,7 @@ func fuzzyScore(q, text string) (int, bool) {
 			score += 6
 		}
 		score += run * 3
-		at = i + 1
+		at = i + utf8.RuneLen(r)
 	}
 	return score, true
 }
@@ -248,7 +260,7 @@ func (a *App) paletteOverlay(c *ui.Context) {
 		field.Children(func() {
 			a.icon(c, "command", 16, t.Dim)
 			input := ui.TextInputBase(c, &a.palette.Query).Grow(1).FontSize(a.fontSize(12.8)).TextColor(t.Foreground).
-				Placeholder("Type a command…").AutoFocus()
+				Placeholder(a.tr("Type a command…")).AutoFocus()
 			input.HandleInput(func(ev ui.InputEvent) bool {
 				if ev.Kind != ui.InputKeyDown {
 					return false
@@ -273,7 +285,7 @@ func (a *App) paletteOverlay(c *ui.Context) {
 		})
 		if len(rows) == 0 {
 			ui.Box(c).Padding(16, 0, 14, 0).Children(func() {
-				ui.Text(c, fmt.Sprintf("Nothing matches %q.", a.palette.Query)).FontSize(a.fontSize(13)).TextColor(t.Dim)
+				ui.Text(c, a.tr("Nothing matches %q.", a.palette.Query)).FontSize(a.fontSize(13)).TextColor(t.Dim)
 			})
 			return
 		}
@@ -343,12 +355,12 @@ func (a *App) welcomeOverlay(c *ui.Context) {
 		head := ui.Row(c).Height(64).FillWidth().PaddingX(24).Gap(10).AlignItems(ui.Center)
 		head.Children(func() {
 			a.logo(c, 26)
-			ui.Text(c, "Welcome to Herdr").FontSize(a.fontSize(17)).FontWeight(600).TextColor(t.Foreground)
+			ui.Text(c, a.tr("Welcome to Herdr")).FontSize(a.fontSize(17)).FontWeight(600).TextColor(t.Foreground)
 			ui.Box(c).PaddingX(6).Radius(4).Border(1, t.Border).Children(func() {
-				ui.Text(c, "BETA").FontSize(a.fontSize(10)).FontWeight(600).TextColor(t.Dim)
+				ui.Text(c, a.tr("BETA")).FontSize(a.fontSize(10)).FontWeight(600).TextColor(t.Dim)
 			})
 			ui.Spacer(c)
-			ui.Text(c, "Drag to move").FontSize(a.fontSize(12)).TextColor(t.Dim)
+			ui.Text(c, a.tr("Drag to move")).FontSize(a.fontSize(12)).TextColor(t.Dim)
 			close := ui.Box(c).Size(26, 26).Radius(6).Center()
 			if close.Hovered() {
 				close.Background(t.Hover)
@@ -361,22 +373,22 @@ func (a *App) welcomeOverlay(c *ui.Context) {
 		})
 		ui.Scroll(c).Height(height - 128).Children(func() {
 			ui.Column(c).FillWidth().Padding(24, 32, 0, 32).Gap(14).Children(func() {
-				ui.Text(c, "Herdr runs your terminals in the background").FontSize(a.fontSize(21)).FontWeight(600).TextColor(t.Foreground)
-				ui.Text(c, "The terminals and agents you open here don't live in this window. They run in herdr-core, a small background program on your computer. Close Herdr, update it, or let it crash, and your agents keep working. Open it again and everything is where you left it, as long as the computer is on.").
+				ui.Text(c, a.tr("Herdr runs your terminals in the background")).FontSize(a.fontSize(21)).FontWeight(600).TextColor(t.Foreground)
+				ui.Text(c, a.tr("The terminals and agents you open here don't live in this window. They run in herdr-core, a small background program on your computer. Close Herdr, update it, or let it crash, and your agents keep working. Open it again and everything is where you left it, as long as the computer is on.")).
 					FontSize(a.fontSize(13.5)).TextColor(t.Muted).Wrap()
-				a.welcomeFeature(c, t, "welcome-bot", "Agents tell you when they need you",
-					"A ring while one works, “Needs you” when it asks something, a sound when it finishes.")
-				a.welcomeFeature(c, t, "welcome-messages", "Agents can start helpers",
-					"They show up under the agent that started them. Click one to watch it.")
-				a.welcomeFeature(c, t, "layers", "Your other machines, in the same window",
-					"A server or a Mac mini runs its own herdr-core, so its agents keep going even while this laptop sleeps.")
+				a.welcomeFeature(c, t, "welcome-bot", a.tr("Agents tell you when they need you"),
+					a.tr("A ring while one works, “Needs you” when it asks something, a sound when it finishes."))
+				a.welcomeFeature(c, t, "welcome-messages", a.tr("Agents can start helpers"),
+					a.tr("They show up under the agent that started them. Click one to watch it."))
+				a.welcomeFeature(c, t, "layers", a.tr("Your other machines, in the same window"),
+					a.tr("A server or a Mac mini runs its own herdr-core, so its agents keep going even while this laptop sleeps."))
 				ui.Box(c).Height(1).FillWidth().Background(t.Border)
 				ui.Row(c).Height(52).FillWidth().AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "Appearance").FontSize(a.fontSize(13)).TextColor(t.Muted).Width(150)
+					ui.Text(c, a.tr("Appearance")).FontSize(a.fontSize(13)).TextColor(t.Muted).Width(150)
 					a.settingsSegmentedOn(c, appearanceNames, &a.settings.Appearance, a.setAppearance)
 				})
 				ui.Row(c).Height(52).FillWidth().AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "Size").FontSize(a.fontSize(13)).TextColor(t.Muted).Width(150)
+					ui.Text(c, a.tr("Size")).FontSize(a.fontSize(13)).TextColor(t.Muted).Width(150)
 					a.stepper(c, fmt.Sprintf("%.0f%%", a.Zoom*100))
 				})
 			})
@@ -395,7 +407,7 @@ func (a *App) welcomeOverlay(c *ui.Context) {
 			btn := ui.Row(c).Height(36).PaddingX(16).Gap(8).Radius(9).Background(t.Solid).AlignItems(ui.Center)
 			btn.Cursor(ui.CursorPointer)
 			btn.Children(func() {
-				ui.Text(c, "Next").FontSize(a.fontSize(13)).FontWeight(600).TextColor(t.SolidForeground)
+				ui.Text(c, a.tr("Next")).FontSize(a.fontSize(13)).FontWeight(600).TextColor(t.SolidForeground)
 				a.icon(c, "chevron-right", 14, t.SolidForeground)
 			})
 			if btn.Clicked() {
@@ -427,7 +439,7 @@ func (a *App) helpOverlay(c *ui.Context) {
 	panel := a.card(c, width, height).Absolute().Top((a.H - height) / 2).Left((a.W - width) / 2).Padding(20).Gap(10)
 	panel.Children(func() {
 		ui.Row(c).FillWidth().Children(func() {
-			ui.Text(c, "Keys").FontSize(a.fontSize(17)).FontWeight(600).TextColor(t.Foreground).Grow(1)
+			ui.Text(c, a.tr("Keys")).FontSize(a.fontSize(17)).FontWeight(600).TextColor(t.Foreground).Grow(1)
 			close := ui.Box(c).Size(26, 26).Radius(6).Center()
 			if close.Hovered() {
 				close.Background(t.Hover)
@@ -463,7 +475,7 @@ func (a *App) pickerOverlay(c *ui.Context) {
 		field.Children(func() {
 			a.icon(c, "search", 15, t.Dim)
 			input := ui.TextInputBase(c, &a.picker.Query).Grow(1).FontSize(a.fontSize(12.8)).TextColor(t.Foreground).
-				Placeholder("Go to a tab, space or agent…").AutoFocus()
+				Placeholder(a.tr("Go to a tab, space or agent…")).AutoFocus()
 			if input.Submitted() {
 				a.CloseOverlay()
 			}
@@ -543,13 +555,13 @@ func (a *App) newMenuOverlay(c *ui.Context) {
 				action()
 			}
 		}
-		item("terminal", "Terminal", prettyKeys(KeyFor("tab.new")), a.newTab)
+		item("terminal", a.tr("Terminal"), prettyKeys(KeyFor("tab.new")), a.newTab)
 		ui.Row(c).Height(26).FillWidth().Padding(8, 9, 0, 9).Children(func() {
-			ui.Text(c, "Start an agent").FontSize(a.fontSize(11)).TextColor(t.Dim)
+			ui.Text(c, a.tr("Start an agent")).FontSize(a.fontSize(11)).TextColor(t.Dim)
 		})
-		ui.Text(c, "No agents to start from the app yet.").FontSize(a.fontSize(12.8)).TextColor(t.Dim).Padding(9, 0, 6, 9)
+		ui.Text(c, a.tr("No agents to start from the app yet.")).FontSize(a.fontSize(12.8)).TextColor(t.Dim).Padding(9, 0, 6, 9)
 		ui.Box(c).Height(1).Margin(4, 5).Background(t.Border)
-		item("plus", "New space", prettyKeys(KeyFor("space.new")), a.newSpace)
+		item("plus", a.tr("New space"), prettyKeys(KeyFor("space.new")), a.newSpace)
 	})
 }
 
@@ -631,11 +643,11 @@ func (a *App) promptOverlay(c *ui.Context) {
 			submit()
 		}
 		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-			cancel := ui.Button(c, "Cancel")
+			cancel := ui.Button(c, a.tr("Cancel"))
 			if cancel.Clicked() {
 				a.CloseOverlay()
 			}
-			ok := ui.PrimaryButton(c, "Save")
+			ok := ui.PrimaryButton(c, a.tr("Save"))
 			if ok.Clicked() {
 				submit()
 			}
@@ -667,7 +679,7 @@ func (a *App) toasts(c *ui.Context) {
 							color = t.Done
 						}
 						ui.Text(c, n.Title).FontSize(a.fontSize(12.5)).FontWeight(600).TextColor(color).Grow(1).Ellipsis("…")
-						a.iconButton(c, "close", 22, "Dismiss notification", func() { a.expireToast(n.id) })
+						a.iconButton(c, "close", 22, a.tr("Dismiss notification"), func() { a.expireToast(n.id) })
 					})
 					if n.Body != "" {
 						ui.Text(c, n.Body).FontSize(a.fontSize(11.5)).TextColor(t.Muted).Wrap()
@@ -685,7 +697,7 @@ func (a *App) filesOverlay(c *ui.Context) {
 	panel := a.card(c, width, height).Absolute().Top(80).Left((a.W - width) / 2).Padding(16).Gap(8)
 	panel.Children(func() {
 		ui.Row(c).FillWidth().Children(func() {
-			ui.Text(c, "Files").FontSize(a.fontSize(16)).FontWeight(600).TextColor(t.Foreground).Grow(1)
+			ui.Text(c, a.tr("Files")).FontSize(a.fontSize(16)).FontWeight(600).TextColor(t.Foreground).Grow(1)
 			close := ui.Box(c).Size(24, 24).Center()
 			close.Children(func() { a.icon(c, "close", 13, t.Dim) })
 			if close.Clicked() {
@@ -729,7 +741,7 @@ func (a *App) changesOverlay(c *ui.Context) {
 	panel := a.card(c, width, height).Absolute().Top(80).Left((a.W - width) / 2).Padding(16).Gap(8)
 	panel.Children(func() {
 		ui.Row(c).FillWidth().Children(func() {
-			ui.Text(c, "Changes").FontSize(a.fontSize(16)).FontWeight(600).TextColor(t.Foreground).Grow(1)
+			ui.Text(c, a.tr("Changes")).FontSize(a.fontSize(16)).FontWeight(600).TextColor(t.Foreground).Grow(1)
 			close := ui.Box(c).Size(24, 24).Center()
 			close.Children(func() { a.icon(c, "close", 13, t.Dim) })
 			if close.Clicked() {
@@ -744,7 +756,7 @@ func (a *App) changesOverlay(c *ui.Context) {
 				}
 				lines, err := gitStatus(dir)
 				if err != nil || len(lines) == 0 {
-					ui.Text(c, "No changes.").FontSize(a.fontSize(12.5)).TextColor(t.Dim)
+					ui.Text(c, a.tr("No changes.")).FontSize(a.fontSize(12.5)).TextColor(t.Dim)
 					return
 				}
 				for _, line := range lines {

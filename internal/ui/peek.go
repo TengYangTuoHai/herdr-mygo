@@ -166,7 +166,7 @@ func (a *App) peekOverlay(c *ui.Context) {
 				})
 			case st.term == nil:
 				ui.Box(c).Fill().Center().Children(func() {
-					ui.Text(c, "Opening the terminal…").FontSize(a.fontSize(12.5)).TextColor(t.Dim)
+					ui.Text(c, a.tr("Opening the terminal…")).FontSize(a.fontSize(12.5)).TextColor(t.Dim)
 				})
 			default:
 				view := terminal.View(c, st.term).Fill()
@@ -200,15 +200,15 @@ func (a *App) peekBar(c *ui.Context, st peekState) {
 		ui.Text(c, terminalName(term, st.addr)).FontSize(a.fontSize(12)).FontWeight(600).TextColor(t.Foreground).
 			Grow(1).MinWidth(0).SingleLine()
 		if w := peekWords[word]; w != "" {
-			ui.Text(c, w).FontSize(a.fontSize(12)).TextColor(t.Status(word)).Shrink(0)
+			ui.Text(c, a.tr(w)).FontSize(a.fontSize(12)).TextColor(t.Status(word)).Shrink(0)
 		}
 		if parent := a.peekParent(term); parent != "" {
-			ui.Text(c, "from "+parent).FontSize(a.fontSize(12)).TextColor(t.Dim).MaxWidth(220).SingleLine()
+			ui.Text(c, a.tr("from %s", parent)).FontSize(a.fontSize(12)).TextColor(t.Dim).MaxWidth(220).SingleLine()
 		}
 		home := a.peekHome(st.addr)
-		keep := "↗ keep"
+		keep := a.tr("↗ keep")
 		if home {
-			keep = "↗ go to"
+			keep = a.tr("↗ go to")
 		}
 		a.peekButton(c, keep, func() { a.keepPeek(st.addr, home) })
 		a.peekButton(c, "✕", func() { a.CloseOverlay() })
@@ -260,7 +260,7 @@ func (a *App) keepPeek(addr string, home bool) {
 	}
 	go func() {
 		if _, _, err := a.keepTerminal(addr); err != nil {
-			a.toast("Cannot keep the sub-agent", err.Error(), "error")
+			a.toast(a.tr("Cannot keep the sub-agent"), err.Error(), "error")
 			a.Repaint()
 			return
 		}

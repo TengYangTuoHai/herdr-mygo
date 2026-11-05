@@ -50,7 +50,7 @@ func (a *App) agentAlerts() {
 }
 
 func (a *App) showAgentAlert(ag herdr.Agent) {
-	sound, title := a.settings.DoneSound, "Done"
+	sound, title := a.settings.DoneSound, a.tr("Done")
 	switch ag.Status {
 	case "done":
 		if !a.settings.AlertDone {
@@ -60,7 +60,7 @@ func (a *App) showAgentAlert(ag herdr.Agent) {
 		if !a.settings.AlertNeeds {
 			return
 		}
-		sound, title = a.settings.NeedsSound, "Needs you"
+		sound, title = a.settings.NeedsSound, a.tr("Needs you")
 	default:
 		return
 	}
@@ -84,11 +84,11 @@ func (a *App) showAgentAlert(ag herdr.Agent) {
 	go func() {
 		err := notify(mygo.NotificationOptions{Title: title + " · " + name, Body: body, Silent: true})
 		if err != nil {
-			message := err.Error()
+			message := a.tr(err.Error())
 			if errors.Is(err, mygo.ErrNotificationsDenied) {
-				message = "Allow Herdr notifications in system notification settings."
+				message = a.tr("Allow Herdr notifications in system notification settings.")
 			}
-			a.toast("Cannot show system notification", message, "error")
+			a.toast(a.tr("Cannot show system notification"), message, "error")
 		}
 	}()
 	if a.settings.AlertSound && !a.settings.MutedAgents[alertAgentKey(ag.Program)] {
@@ -111,7 +111,7 @@ func (a *App) previewAlertSound(name string) {
 		play = a.playAlertSound
 	}
 	if err := play(name); err != nil {
-		a.toast("Cannot play sound", err.Error(), "error")
+		a.toast(a.tr("Cannot play sound"), err.Error(), "error")
 	}
 }
 
@@ -182,14 +182,14 @@ func (a *App) chooseAlertSound(label string, selected *string) {
 	if pick == nil {
 		pick = func() ([]string, error) {
 			return mygo.Dialog.Open(mygo.OpenDialogOptions{
-				Parent: a.Win, Title: "Choose " + strings.ToLower(label),
-				Filters: []mygo.FileFilter{{Name: "WAV sounds", Extensions: []string{"wav"}}},
+				Parent: a.Win, Title: a.tr("Choose %s", strings.ToLower(label)),
+				Filters: []mygo.FileFilter{{Name: a.tr("WAV sounds"), Extensions: []string{"wav"}}},
 			})
 		}
 	}
 	paths, err := pick()
 	if err != nil {
-		a.toast("Cannot choose sound", err.Error(), "error")
+		a.toast(a.tr("Cannot choose sound"), err.Error(), "error")
 		return
 	}
 	if len(paths) == 0 {
@@ -209,13 +209,13 @@ func (a *App) chooseAlertSound(label string, selected *string) {
 			return
 		}
 	}
-	a.toast("Cannot choose sound", err.Error(), "error")
+	a.toast(a.tr("Cannot choose sound"), err.Error(), "error")
 }
 
 // settingsSound is a preview, the built-in choices and a custom WAV picker.
 func (a *App) settingsSound(c *ui.Context, label string, selected *string, enabled bool) {
 	t := a.T
-	play := ui.Box(c).Size(26, 26).Radius(13).Border(1, t.Input).Center().Label("Preview " + label)
+	play := ui.Box(c).Size(26, 26).Radius(13).Border(1, t.Input).Center().Label(a.tr("Preview %s", label))
 	if enabled {
 		play.Cursor(ui.CursorPointer)
 		if play.Clicked() {
@@ -225,12 +225,12 @@ func (a *App) settingsSound(c *ui.Context, label string, selected *string, enabl
 	play.Children(func() { a.icon(c, "play", 10, t.Muted) })
 	if !enabled {
 		ui.Text(c, alertSoundLabel(*selected)).FontSize(a.fontSize(12)).TextColor(t.Muted).Width(110).Ellipsis("…")
-		a.settingsButton(c, "Choose…", false, true, nil)
+		a.settingsButton(c, a.tr("Choose…"), false, true, nil)
 		return
 	}
 	sel := ui.SelectBase(c.Key(label), selected)
 	sel.Trigger.Row().Width(110).Height(26).PaddingX(8).Gap(4).Radius(6).
-		Border(1, t.Input).AlignItems(ui.Center).Label(label + " selection").Children(func() {
+		Border(1, t.Input).AlignItems(ui.Center).Label(a.tr("%s selection", label)).Children(func() {
 		ui.Text(c, alertSoundLabel(*selected)).FontSize(a.fontSize(12)).TextColor(t.Muted).Grow(1).Ellipsis("…")
 		a.icon(c, "chevron-down", 10, t.Dim)
 	})
@@ -250,8 +250,8 @@ func (a *App) settingsSound(c *ui.Context, label string, selected *string, enabl
 			})
 		}
 	})
-	ui.Box(c).Label("Choose " + label).Children(func() {
-		a.settingsButton(c, "Choose…", false, true, func() { a.chooseAlertSound(label, selected) })
+	ui.Box(c).Label(a.tr("Choose %s", label)).Children(func() {
+		a.settingsButton(c, a.tr("Choose…"), false, true, func() { a.chooseAlertSound(label, selected) })
 	})
 }
 
@@ -263,9 +263,9 @@ func (a *App) agentSoundSummary() string {
 		}
 	}
 	if muted == 0 {
-		return "All agents on"
+		return a.tr("All agents on")
 	}
-	return fmt.Sprintf("%d muted", muted)
+	return a.tr("%d muted", muted)
 }
 
 func (a *App) alertPrograms() []herdr.ProgramInfo {
@@ -300,7 +300,7 @@ func (a *App) settingsAgentSounds(c *ui.Context) {
 		key := alertAgentKey(program)
 		a.settingsRow(c.Key(key), program.Name, "", func() {
 			on := !a.settings.MutedAgents[key]
-			ui.Box(c).Label(program.Name + " sound").Children(func() { a.settingsToggle(c, &on) })
+			ui.Box(c).Label(a.tr("%s sound", program.Name)).Children(func() { a.settingsToggle(c, &on) })
 			if on {
 				delete(a.settings.MutedAgents, key)
 			} else {

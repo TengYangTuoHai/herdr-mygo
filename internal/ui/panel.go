@@ -115,8 +115,8 @@ func (a *App) filesPanelView(c *ui.Context) {
 	}
 	if root == "" {
 		ui.Column(c).Fill().Background(t.Background).Radius(10).Border(1, t.Border).Clip().Children(func() {
-			a.panelHeader(c, "Files", "", nil)
-			ui.Text(c, "Reading the machine's home…").FontSize(a.fontSize(12)).TextColor(t.Dim).Padding(8)
+			a.panelHeader(c, a.tr("Files"), "", nil)
+			ui.Text(c, a.tr("Reading the machine's home…")).FontSize(a.fontSize(12)).TextColor(t.Dim).Padding(8)
 		})
 		return
 	}
@@ -125,7 +125,7 @@ func (a *App) filesPanelView(c *ui.Context) {
 		if a.files.File != "" {
 			detail = a.files.File
 		}
-		a.panelHeader(c, "Files", detail, func() {
+		a.panelHeader(c, a.tr("Files"), detail, func() {
 			if a.files.File != "" {
 				back := ui.Text(c, "←").FontSize(a.fontSize(14)).TextColor(t.Muted)
 				if back.Clicked() {
@@ -170,7 +170,7 @@ func (a *App) fileRows(c *ui.Context, root, on, prefix string, depth int) {
 	} else {
 		state := a.remoteListing(on, dir)
 		if state.Loading {
-			ui.Text(c, "Loading…").FontSize(a.fontSize(12)).TextColor(t.Dim).Padding(8)
+			ui.Text(c, a.tr("Loading…")).FontSize(a.fontSize(12)).TextColor(t.Dim).Padding(8)
 			return
 		}
 		if state.Err != "" {
@@ -241,7 +241,7 @@ func (a *App) openFile(root, on, rel string) {
 	text := string(data)
 	if strings.ContainsRune(text, 0) {
 		a.files.File = rel
-		a.files.Content = []string{"Binary file · no text preview"}
+		a.files.Content = []string{a.tr("Binary file · no text preview")}
 		return
 	}
 	a.files.File = rel
@@ -261,9 +261,9 @@ func (a *App) changesPanelView(c *ui.Context) {
 			add += f.Add
 			del += f.Del
 		}
-		a.panelHeader(c, "Changes", "", func() {
+		a.panelHeader(c, a.tr("Changes"), "", func() {
 			ui.Box(c).PaddingX(5).Radius(4).Border(1, t.Border).Children(func() {
-				ui.Text(c, itoa(len(a.changes.Files))+" files").FontSize(a.fontSize(10)).TextColor(t.Muted)
+				ui.Text(c, a.tr("%d files", len(a.changes.Files))).FontSize(a.fontSize(10)).TextColor(t.Muted)
 			})
 			ui.Spacer(c)
 			if add > 0 {
@@ -275,7 +275,7 @@ func (a *App) changesPanelView(c *ui.Context) {
 		})
 		if len(a.changes.Files) == 0 {
 			ui.Box(c).Padding(8).Children(func() {
-				ui.Text(c, "No uncommitted changes").FontSize(a.fontSize(13)).TextColor(t.Dim)
+				ui.Text(c, a.tr("No uncommitted changes")).FontSize(a.fontSize(13)).TextColor(t.Dim)
 			})
 		}
 		ui.Column(c).Height(float32(minInt(200, maxInt(44, len(a.changes.Files)*28+12)))).FillWidth().Children(func() {
@@ -347,7 +347,7 @@ func (a *App) changesPanelView(c *ui.Context) {
 		ui.Row(c).Height(52).FillWidth().PaddingX(10).PaddingY(10).Gap(8).AlignItems(ui.Center).Children(func() {
 			box := ui.Row(c).Height(32).Grow(1).PaddingX(10).Radius(8).Border(1, t.Border).AlignItems(ui.Center)
 			box.Children(func() {
-				input := ui.TextInputBase(c, &a.commitMessage).FontSize(a.fontSize(12)).TextColor(t.Foreground).Placeholder("Commit message…")
+				input := ui.TextInputBase(c, &a.commitMessage).FontSize(a.fontSize(12)).TextColor(t.Foreground).Placeholder(a.tr("Commit message…"))
 				if input.Submitted() {
 					a.commit(a.panelMachine(), root)
 				}
@@ -364,7 +364,7 @@ func (a *App) changesPanelView(c *ui.Context) {
 				if enabled {
 					color = t.SolidForeground
 				}
-				ui.Text(c, "Commit").FontSize(a.fontSize(12)).TextColor(color)
+				ui.Text(c, a.tr("Commit")).FontSize(a.fontSize(12)).TextColor(color)
 			})
 			if enabled && btn.Clicked() {
 				a.commit(a.panelMachine(), root)
@@ -459,7 +459,7 @@ func (a *App) numstat(on, root, path string, added bool) int {
 func (a *App) diffLines(root, on, path string) []string {
 	out, err := a.gitText(on, root, "diff", "HEAD", "--no-ext-diff", "--no-textconv", "--no-color", "--", path)
 	if err != nil || out == "" {
-		return []string{"No text diff available"}
+		return []string{a.tr("No text diff available")}
 	}
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
 	for i := 0; i < len(lines); i++ {
@@ -477,11 +477,11 @@ func (a *App) commit(on, root string) {
 		return
 	}
 	if _, err := a.gitText(on, root, "add", "-A"); err != nil {
-		a.toast("Commit failed", err.Error(), "error")
+		a.toast(a.tr("Commit failed"), err.Error(), "error")
 		return
 	}
 	if _, err := a.gitText(on, root, "commit", "-m", msg); err != nil {
-		a.toast("Commit failed", err.Error(), "error")
+		a.toast(a.tr("Commit failed"), err.Error(), "error")
 		return
 	}
 	a.commitMessage = ""
