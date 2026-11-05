@@ -78,7 +78,9 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
   and Changes running git there. A machine that needs herdr-core copied, a
   password or a host key opens `hc machine add` in a terminal inside the
   dialog. Settings →
-  Machines lists each machine with its state, and Connect / Remove
+  Machines lists each machine with its state, and Connect / Remove. SSH
+  keepalives and connection reuse are always managed by herdr-core; the app
+  has no keepalive switch
 - Terminal attach: live output, typing, resize, colors reported to programs,
   selection, copy/paste, links, scrollback (MyGo terminal plugin)
 - Find in terminal output and scrollback: ⌘F (Ctrl+Shift+F elsewhere),
@@ -110,7 +112,18 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
   single-`theme` settings retain their previous appearance fallback.
   Graphite, Ink, Moss and Paper remain available alongside Kero's Petal,
   Mist, Meadow, Dusk, Tide, Apricot, Aurora, Dune, Neutral and Plain.
-  Neutral is Kero's paper wash, named separately to keep Herdr's Paper palette
+  Neutral is Kero's paper wash, named separately to keep Herdr's Paper palette.
+  Look's font controls list bundled and installed families (monospaced families
+  for terminals), with editable sizes from 8 to 40. Interface type updates
+  across the window; terminal type updates open panes and peek without
+  reconnecting. Font choices, sizes and window zoom persist in `settings.json`
+- Alerts follow agent status reports: Done and Needs you show a toast for
+  agents in another space, with optional sound. Repeated reports and the
+  initial session snapshot stay quiet. Glass and Ping are built-in chimes;
+  either event can use a custom mono/stereo WAV file (up to 10 seconds and
+  10 MB), previewed from Settings. By agent mutes sound for a program while
+  keeping its toasts. Sound choices and per-agent mutes persist in
+  `settings.json`; disabling Play a sound keeps notifications enabled.
 - The app keeps its own files, apart from herdr-app's, under
   `~/.config/herdr-mygo`: `settings.json` written as a setting changes, the
   keys, and the screen's view
@@ -146,9 +159,10 @@ are JavaScript mods. This port draws Herdr's shipped interface in Go, so:
   `terminal.keep` answer `herdr-app do`: `ls`, `status`, `shot` and the rest
   of its commands are not here yet. Previews (Files, Changes) are read-only
   except the commit box.
-- Zoom is not written back to `settings.json` yet, and the Alerts, Updates
-  and Privacy controls are presentational: the app has no sound, update
-  check or telemetry yet.
+- Option as Alt is hidden while MyGo v0.7.4 lacks runtime and left/right
+  Option control. Existing saved values are retained for future support.
+- The Updates and Privacy controls are presentational: the app has no
+  update check or telemetry yet.
 
 ## How it is checked
 

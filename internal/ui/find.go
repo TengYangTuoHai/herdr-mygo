@@ -100,7 +100,7 @@ func (a *App) findBar(c *ui.Context, key string, term *terminal.Terminal) {
 	bar.Children(func() {
 		a.icon(c, "search", 13, t.Dim)
 		input := ui.TextInputBase(c.Key("query"), &f.query).Grow(1).MinWidth(0).
-			FontSize(13).TextColor(t.Foreground).Placeholder("Find in terminal…").Label("Terminal search")
+			FontSize(a.fontSize(13)).TextColor(t.Foreground).Placeholder("Find in terminal…").Label("Terminal search")
 		if f.focus {
 			f.focus = false
 			a.focusTerm = term
@@ -123,7 +123,7 @@ func (a *App) findBar(c *ui.Context, key string, term *terminal.Terminal) {
 		default:
 			count = "No matches"
 		}
-		ui.Text(c, count).FontSize(11).TextColor(t.Dim).SingleLine().Shrink(0)
+		ui.Text(c, count).FontSize(a.fontSize(11)).TextColor(t.Dim).SingleLine().Shrink(0)
 		a.findButton(c, "↑", "Next match (Enter)", term.SearchNext)
 		a.findButton(c, "↓", "Previous match (Shift+Enter)", term.SearchPrevious)
 		a.findButton(c, "✕", "Close terminal search (Escape)", a.closeFind)
@@ -138,7 +138,7 @@ func (a *App) findButton(c *ui.Context, text, label string, click func()) {
 	if b.Hovered() {
 		b.Background(a.T.Hover)
 	}
-	b.Children(func() { ui.Text(c, text).FontSize(13).TextColor(a.T.Muted) })
+	b.Children(func() { ui.Text(c, text).FontSize(a.fontSize(13)).TextColor(a.T.Muted) })
 	if b.Clicked() {
 		click()
 	}

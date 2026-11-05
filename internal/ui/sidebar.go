@@ -19,7 +19,7 @@ func (a *App) spaces(c *ui.Context) {
 	ui.Column(c).Fill().Background(t.Chrome).Children(func() {
 		header := ui.Row(c).Height(31).FillWidth().Padding(0, 10, 0, 16).AlignItems(ui.Center).Justify(ui.SpaceBetween)
 		header.Children(func() {
-			ui.Text(c, "Spaces").FontSize(11.5).TextColor(t.Dim)
+			ui.Text(c, "Spaces").FontSize(a.fontSize(11.5)).TextColor(t.Dim)
 			a.iconButton(c, "plus", 26, "New space", func() { a.newSpace() })
 		})
 		ui.Scroll(c).Grow(1).Padding(0, 8, 14, 8).Children(func() {
@@ -28,7 +28,7 @@ func (a *App) spaces(c *ui.Context) {
 				machines := a.S.Machines()
 				if len(places) == 0 && len(machines) == 0 {
 					ui.Row(c).Height(28).PaddingX(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, "Loading…").FontSize(12).TextColor(t.Dim)
+						ui.Text(c, "Loading…").FontSize(a.fontSize(12)).TextColor(t.Dim)
 					})
 					return
 				}
@@ -132,11 +132,11 @@ func (a *App) spaceRow(c *ui.Context, sp *herdr.Space, places []*herdr.Space, st
 				if r := []rune(name); len(r) > 0 {
 					letter = strings.ToUpper(string(r[0]))
 				}
-				ui.Text(c, letter).FontSize(8.5).FontWeight(700).TextColor(ui.RGB(255, 255, 255))
+				ui.Text(c, letter).FontSize(a.fontSize(8.5)).FontWeight(700).TextColor(ui.RGB(255, 255, 255))
 			})
 			// SingleLine keeps a long name on its row's height: it ends in
 			// an ellipsis rather than wrapping the row into two.
-			ui.Text(c, name).FontSize(12.5).TextColor(t.Foreground).MaxWidth(110).
+			ui.Text(c, name).FontSize(a.fontSize(12.5)).TextColor(t.Foreground).MaxWidth(110).
 				SingleLine().Shrink(1).MinWidth(0)
 			if status := statuses[sp.ID]; status != "" {
 				ui.Box(c).Size(6, 6).Radius(3).Background(t.Status(status))
@@ -196,7 +196,7 @@ func (a *App) gitChip(c *ui.Context, tail string) {
 		a.icon(c, "git-branch", 9, t.Dim)
 		// A long branch is cut, never wrapped: the chip stays one line high
 		// however little room the name leaves it.
-		ui.Text(c, tail).FontSize(10).Font("JetBrains Mono").TextColor(t.Muted).MaxWidth(92).
+		ui.Text(c, tail).FontSize(a.fontSize(10)).Font("JetBrains Mono").TextColor(t.Muted).MaxWidth(92).
 			SingleLine().Shrink(1).MinWidth(0)
 	})
 }
@@ -251,7 +251,7 @@ func (a *App) agents(c *ui.Context) {
 		}
 		row := ui.Row(c).Height(41).FillWidth().Padding(14, 16, 5, 16).Gap(8).AlignItems(ui.Center)
 		row.Children(func() {
-			ui.Text(c, "Agents").FontSize(11.5).FontWeight(500).TextColor(t.Dim)
+			ui.Text(c, "Agents").FontSize(a.fontSize(11.5)).FontWeight(500).TextColor(t.Dim)
 			ui.Spacer(c)
 			a.agentCount(c, "blocked", blocked)
 			a.agentCount(c, "working", working)
@@ -278,7 +278,7 @@ func (a *App) agents(c *ui.Context) {
 		if len(list) == 0 {
 			ui.Box(c).PaddingX(12).Children(func() {
 				ui.Text(c, "No agent status yet. Older agents or tmux may not report.").
-					FontSize(12).TextColor(t.Dim).Wrap()
+					FontSize(a.fontSize(12)).TextColor(t.Dim).Wrap()
 			})
 		}
 		ui.Scroll(c).Grow(1).Children(func() {
@@ -297,7 +297,7 @@ func (a *App) agentCount(c *ui.Context, word string, n int) {
 	t := a.T
 	ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
 		ui.Box(c).Size(6, 6).Radius(3).Background(t.Status(word))
-		ui.Text(c, itoa(n)).FontSize(11).TextColor(t.Dim)
+		ui.Text(c, itoa(n)).FontSize(a.fontSize(11)).TextColor(t.Dim)
 	})
 }
 
@@ -340,8 +340,8 @@ func (a *App) agentGroups(c *ui.Context, list []*herdr.Agent) {
 		sort.SliceStable(mine, func(i, j int) bool { return mine[i].Seq > mine[j].Seq })
 		head := ui.Row(c).Height(30).FillWidth().Padding(8, 8, 0, 8).Gap(6).AlignItems(ui.Center)
 		head.Children(func() {
-			ui.Text(c, sec.label).FontSize(11).FontWeight(500).TextColor(t.Status(sec.word))
-			ui.Text(c, itoa(len(mine))).FontSize(11).TextColor(t.Dim)
+			ui.Text(c, sec.label).FontSize(a.fontSize(11)).FontWeight(500).TextColor(t.Status(sec.word))
+			ui.Text(c, itoa(len(mine))).FontSize(a.fontSize(11)).TextColor(t.Dim)
 			ui.Spacer(c)
 		})
 		for _, ag := range mine {
@@ -428,13 +428,13 @@ func (a *App) subAgentRow(c *ui.Context, sub subRow) {
 	row.Children(func() {
 		for _, line := range sub.Lines {
 			ui.Box(c).Width(11).Height(26).Center().Children(func() {
-				ui.Text(c, line).FontSize(12).TextColor(t.Input)
+				ui.Text(c, line).FontSize(a.fontSize(12)).TextColor(t.Input)
 			})
 		}
 		ui.Box(c).Width(8)
 		a.programIcon(c, herdr.Program(term), 14, t.Foreground)
 		ui.Box(c).Width(8)
-		ui.Text(c, terminalName(term, term.Address)).FontSize(12.5).TextColor(t.Muted).Grow(1).MinWidth(0).SingleLine()
+		ui.Text(c, terminalName(term, term.Address)).FontSize(a.fontSize(12.5)).TextColor(t.Muted).Grow(1).MinWidth(0).SingleLine()
 		a.agentStatus(c, subWord(term.Word()))
 	})
 	if row.Clicked() {
@@ -466,7 +466,7 @@ func (a *App) agentRow(c *ui.Context, ag *herdr.Agent) {
 		if ag.Status == "idle" && !ag.Focused {
 			color = t.Muted
 		}
-		ui.Text(c, name).FontSize(12.5).TextColor(color).Grow(1).MinWidth(0).SingleLine()
+		ui.Text(c, name).FontSize(a.fontSize(12.5)).TextColor(color).Grow(1).MinWidth(0).SingleLine()
 		// The list mixes every machine: a row from elsewhere says which one.
 		if ag.Machine != "" {
 			a.machineChip(c, ag.Machine)
@@ -485,7 +485,7 @@ func (a *App) machineChip(c *ui.Context, name string) {
 	ui.Row(c).Height(17).PaddingX(4).Gap(3).Radius(4).Border(1, t.Border).AlignItems(ui.Center).
 		Shrink(1).MinWidth(0).Children(func() {
 		a.icon(c, "server", 9, t.Dim)
-		ui.Text(c, name).FontSize(10).TextColor(t.Muted).MaxWidth(92).
+		ui.Text(c, name).FontSize(a.fontSize(10)).TextColor(t.Muted).MaxWidth(92).
 			SingleLine().Shrink(1).MinWidth(0)
 	})
 }
@@ -499,7 +499,7 @@ func (a *App) agentStatus(c *ui.Context, word string) {
 		a.spinner(c, 12, t.Working)
 	case "blocked":
 		ui.Box(c).Height(18).PaddingX(6).Radius(5).Center().Background(Alpha(t.Blocked, 0.15)).Children(func() {
-			ui.Text(c, "Needs you").FontSize(10.5).FontWeight(600).TextColor(t.Blocked)
+			ui.Text(c, "Needs you").FontSize(a.fontSize(10.5)).FontWeight(600).TextColor(t.Blocked)
 		})
 	case "idle":
 		ui.Box(c).Size(7, 7).Radius(4).Border(1.5, t.Idle)
@@ -647,9 +647,9 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 		if label == "" {
 			label = "This computer"
 		}
-		ui.Text(c, label).FontSize(11).TextColor(t.Dim).Grow(1).Ellipsis("…")
+		ui.Text(c, label).FontSize(a.fontSize(11)).TextColor(t.Dim).Grow(1).Ellipsis("…")
 		if !connected {
-			ui.Text(c, strings.ReplaceAll(state, "_", " ")).FontSize(11).TextColor(t.Dim)
+			ui.Text(c, strings.ReplaceAll(state, "_", " ")).FontSize(a.fontSize(11)).TextColor(t.Dim)
 		} else {
 			plus = ui.Box(c).Size(16, 16).Radius(4).Center()
 			if plus.Hovered() {
@@ -705,7 +705,7 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 				return
 			}
 			ui.Row(c).Height(28).PaddingX(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Loading…").FontSize(12).TextColor(t.Dim)
+				ui.Text(c, "Loading…").FontSize(a.fontSize(12)).TextColor(t.Dim)
 			})
 			return
 		}
@@ -716,7 +716,7 @@ func (a *App) machineGroup(c *ui.Context, name string, places []*herdr.Space, ma
 		row.Cursor(ui.CursorPointer)
 		row.Children(func() {
 			a.icon(c, "plus", 12, t.Dim)
-			ui.Text(c, "New space there").FontSize(12).TextColor(t.Dim)
+			ui.Text(c, "New space there").FontSize(a.fontSize(12)).TextColor(t.Dim)
 		})
 		if row.Clicked() {
 			a.newSpaceOn(name)

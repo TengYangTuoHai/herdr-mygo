@@ -30,6 +30,8 @@ const (
 	paneMinHeight float32 = 60
 	// sidebarDuration is how long the sidebar takes to open or close.
 	sidebarDuration = 200 * time.Millisecond
+	// Keep recently visited tabs ready without retaining every visited terminal.
+	maxHiddenTerminals = 12
 )
 
 // App is the window's state: the core's world, what the window shows of it,
@@ -75,11 +77,15 @@ type App struct {
 	settingsPath  string
 	savedSettings string
 
-	mu          sync.Mutex
-	terms       map[string]*paneTerm
-	starting    map[string]bool
-	failedTerms map[string]bool // failed attachments wait until the pane is shown again
-	nextToastID uint64
+	mu            sync.Mutex
+	terms         map[string]*paneTerm
+	starting      map[string]bool
+	failedTerms   map[string]bool // failed attachments wait until the pane is shown again
+	nextToastID   uint64
+	termUsed      uint64
+	terminalStyle terminal.Font       // guarded by mu; attachment goroutines use the latest choice
+	terminalPrefs terminalPreferences // guarded by mu
+	fontFamilies  []ui.FontFamily
 
 	focusTerm *terminal.Terminal
 	overlay   string
@@ -96,6 +102,7 @@ type App struct {
 	closing   closeState
 	prompt    PromptState
 	settings  settingsState
+	alerts    alertState
 	picker    pickerState
 	menuItems []MenuItem
 	menuTitle string
@@ -115,11 +122,12 @@ type App struct {
 }
 
 type paneTerm struct {
-	key  string
-	pane string
-	addr string
-	term *terminal.Terminal
-	conn *herdr.Attach
+	key      string
+	pane     string
+	addr     string
+	term     *terminal.Terminal
+	conn     peekStream
+	lastUsed uint64
 }
 
 // NewApp makes the window's state.
@@ -133,6 +141,8 @@ func NewApp(s *herdr.Session, theme *Theme) *App {
 		sidebarShown:   268,
 		splitRatio:     0.5,
 		settings:       defaultSettings(),
+		terminalStyle:  terminal.Font{Family: TerminalFont, Size: 14},
+		terminalPrefs:  terminalPreferences{clipboard: true, contrast: 1},
 		terms:          map[string]*paneTerm{},
 		starting:       map[string]bool{},
 		failedTerms:    map[string]bool{},
@@ -149,27 +159,27 @@ func (a *App) Repaint() {
 
 // View builds the whole window.
 func (a *App) View(c *ui.Context) {
+	style := *c.Theme()
+	style.Font, style.FontSize = a.interfaceFont(), a.fontSize(13)
+	c.SetTheme(&style)
+	a.applyTerminalFont()
 	t := a.T
 	if a.S == nil {
 		ui.Box(c).Fill().Background(t.Canvas).Center().Children(func() {
 			ui.Column(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Herdr").FontSize(18).FontWeight(600).TextColor(t.Foreground)
+				ui.Text(c, "Herdr").FontSize(a.fontSize(18)).FontWeight(600).TextColor(t.Foreground)
 				msg := "Connecting to herdr-core…"
 				if a.err != nil {
 					msg = a.err.Error()
 				}
-				ui.Text(c, msg).FontSize(12.5).TextColor(t.Dim)
+				ui.Text(c, msg).FontSize(a.fontSize(12.5)).TextColor(t.Dim)
 			})
 		})
 		return
 	}
+	c.SetZoom(a.Zoom)
 	w, h := c.Size()
 	a.W, a.H = w, h
-	if a.Zoom != 1 {
-		c.SetZoom(a.Zoom)
-		w, h = c.Size()
-		a.W, a.H = w, h
-	}
 	a.keys(c)
 	if a.overlay == "settings" && c.Shortcut(ui.Cmd, ui.KeyF) {
 		a.openSettingsSearch()
@@ -184,11 +194,12 @@ func (a *App) View(c *ui.Context) {
 		}
 	}
 	a.collect()
+	a.agentAlerts()
 	// The edge is read before the sidebar is built, so that a drag follows
 	// the pointer in the frame it moves.
 	a.resizeHandle(c)
 	a.paneDragged, a.paneDrag = a.paneDrag, false
-	frame := t.windowFrame(c)
+	frame := t.windowFrame(c).Font(a.interfaceFont())
 	frame.Children(func() {
 		a.sidebar(c)
 		if a.sidebarShown > 0 {
@@ -307,7 +318,7 @@ func (a *App) brand(c *ui.Context) {
 	row.Children(func() {
 		ui.Row(c).Grow(1).Gap(8).AlignItems(ui.Center).Children(func() {
 			a.logo(c, 20)
-			ui.Text(c, "Herdr").FontSize(13.5).FontWeight(600).TextColor(t.Foreground)
+			ui.Text(c, "Herdr").FontSize(a.fontSize(13.5)).FontWeight(600).TextColor(t.Foreground)
 		})
 		a.iconButton(c, "search", 26, "Search", func() { a.OpenOverlay("picker") })
 		a.iconButton(c, "sidebar", 26, "Hide sidebar", a.toggleSidebar)
@@ -419,7 +430,7 @@ func (a *App) footerRow(c *ui.Context, icon, label string, dim bool, action func
 	row.Cursor(ui.CursorPointer)
 	row.Children(func() {
 		a.icon(c, icon, 14, color)
-		ui.Text(c, label).FontSize(13).TextColor(color)
+		ui.Text(c, label).FontSize(a.fontSize(13)).TextColor(color)
 	})
 	if row.Clicked() {
 		action()
@@ -546,7 +557,7 @@ func (a *App) tab(c *ui.Context, tab *herdr.Tab, active bool) {
 		if zoomed {
 			label += " Z"
 		}
-		ui.Text(c, label).FontSize(12.8).TextColor(color).MaxWidth(170).Ellipsis("…")
+		ui.Text(c, label).FontSize(a.fontSize(12.8)).TextColor(color).MaxWidth(170).Ellipsis("…")
 		switch status {
 		case "working":
 			a.spinner(c, 12, t.Working)
@@ -592,7 +603,7 @@ func (a *App) panelButton(c *ui.Context, id, label string) {
 	}
 	row.Children(func() {
 		a.icon(c, id, 14, color)
-		ui.Text(c, label).FontSize(12).TextColor(color)
+		ui.Text(c, label).FontSize(a.fontSize(12)).TextColor(color)
 	})
 	if row.Clicked() {
 		a.OpenPanel(id)
@@ -661,9 +672,9 @@ func (a *App) renderNode(c *ui.Context, tab string, n *herdr.Node, panes map[str
 	if n.Type == "row" || n.Type == "column" {
 		var box ui.Element
 		if n.Type == "row" {
-			box = ui.Row(c)
+			box = ui.Row(c.Key(n.ID))
 		} else {
-			box = ui.Column(c)
+			box = ui.Column(c.Key(n.ID))
 		}
 		if root {
 			box = box.Fill()
@@ -687,7 +698,7 @@ func (a *App) renderNode(c *ui.Context, tab string, n *herdr.Node, panes map[str
 	if !ok {
 		return
 	}
-	box := ui.Box(c)
+	box := ui.Box(c.Key(n.ID))
 	if root {
 		box = box.Fill()
 	} else {
@@ -879,7 +890,7 @@ func (a *App) paneCard(c *ui.Context, p herdr.PaneInfo, radius, pad float32) {
 	if p.Focused {
 		borderColor = t.Accent
 	}
-	card := ui.Column(c).Fill().Background(t.Background).Radius(radius).Border(1, borderColor).Clip()
+	card := ui.Column(c.Key(p.Pane+"|"+p.Terminal)).Fill().Background(t.Background).Radius(radius).Border(1, borderColor).Clip()
 	card.Children(func() {
 		a.paneHeader(c, p)
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
@@ -902,14 +913,14 @@ func (a *App) paneHeader(c *ui.Context, p herdr.PaneInfo) {
 		if name == "" {
 			name = "shell"
 		}
-		ui.Text(c, name).FontSize(12).FontWeight(500).TextColor(t.Foreground).MaxWidth(260).Ellipsis("…")
-		ui.Text(c, herdr.ShortFolder(p.Cwd)).FontSize(12).TextColor(t.Dim).Grow(1).Ellipsis("…")
+		ui.Text(c, name).FontSize(a.fontSize(12)).FontWeight(500).TextColor(t.Foreground).MaxWidth(260).Ellipsis("…")
+		ui.Text(c, herdr.ShortFolder(p.Cwd)).FontSize(a.fontSize(12)).TextColor(t.Dim).Grow(1).Ellipsis("…")
 		switch p.Status {
 		case "working":
 			a.spinner(c, 12, t.Working)
 		case "blocked":
 			ui.Box(c).Height(18).PaddingX(6).Radius(5).Background(Alpha(t.Blocked, 0.15)).Center().Children(func() {
-				ui.Text(c, "Needs you").FontSize(10.5).FontWeight(600).TextColor(t.Blocked)
+				ui.Text(c, "Needs you").FontSize(a.fontSize(10.5)).FontWeight(600).TextColor(t.Blocked)
 			})
 		case "done":
 			ui.Box(c).Size(7, 7).Radius(4).Background(t.Done)
@@ -1022,6 +1033,8 @@ func (a *App) terminalFor(p herdr.PaneInfo) *terminal.Terminal {
 	key := p.Pane + "|" + p.Terminal
 	a.mu.Lock()
 	if entry, ok := a.terms[key]; ok {
+		a.termUsed++
+		entry.lastUsed = a.termUsed
 		a.mu.Unlock()
 		return entry.term
 	}
@@ -1039,39 +1052,53 @@ func (a *App) terminalFor(p herdr.PaneInfo) *terminal.Terminal {
 // startTerminal attaches to the pane's terminal and makes its view.
 func (a *App) startTerminal(key string, p herdr.PaneInfo) {
 	t := a.T
-	conn, err := a.S.Attach(p.Terminal, 80, 24, t.TerminalForeground, t.Background, t.Cursor, 8, 16)
-	if err != nil {
-		a.terminalFailed(key, "Cannot show the terminal", err)
-		return
-	}
-	var term *terminal.Terminal
-	term, err = terminal.New(terminal.Options{
-		Conn:         conn,
-		Font:         terminal.Font{Family: TerminalFont, Size: 14},
-		Theme:        terminalTheme(t),
-		Padding:      terminal.Padding{X: 14, Y: 12},
-		PaddingColor: terminal.PaddingExtend,
-		// A paste that holds an image is taken for a pane on another
-		// machine, whose program cannot read this computer's clipboard
-		// (pasteImage). term is set by New, before any frame can draw
-		// the terminal that a paste comes from.
-		OnPaste: func(d transfer.Data) bool {
-			return a.pasteImage(term, p.Terminal, d)
-		},
+	conn := newPeekConnection(func(cols, rows, cellW, cellH int) (peekStream, error) {
+		attached, err := a.S.Attach(p.Terminal, cols, rows, t.TerminalForeground, t.Background, t.Cursor, cellW, cellH)
+		if err != nil {
+			a.terminalFailed(key, "Cannot show the terminal", err)
+			return nil, err
+		}
+		return attached, nil
 	})
+	var term *terminal.Terminal
+	opts := a.currentTerminalOptions()
+	opts.Conn, opts.Theme = conn, terminalTheme(t)
+	opts.Padding, opts.PaddingColor = terminal.Padding{X: 14, Y: 12}, terminal.PaddingExtend
+	// A paste that holds an image is taken for a pane on another
+	// machine, whose program cannot read this computer's clipboard
+	// (pasteImage). term is set by New, before any frame can draw
+	// the terminal that a paste comes from.
+	opts.OnPaste = func(d transfer.Data) bool {
+		return a.pasteImage(term, p.Terminal, d)
+	}
+	term, err := terminal.New(opts)
 	if err != nil {
 		_ = conn.Close()
 		a.terminalFailed(key, "Cannot start the terminal", err)
 		return
 	}
 	a.mu.Lock()
-	a.terms[key] = &paneTerm{key: key, pane: p.Pane, addr: p.Terminal, term: term, conn: conn}
+	if !a.starting[key] {
+		a.mu.Unlock()
+		_ = term.Close()
+		return
+	}
+	term.SetFont(a.terminalStyle)
+	term.SetMinimumContrast(a.terminalPrefs.contrast)
+	a.termUsed++
+	entry := &paneTerm{key: key, pane: p.Pane, addr: p.Terminal, term: term, conn: conn, lastUsed: a.termUsed}
+	a.terms[key] = entry
 	delete(a.starting, key)
 	a.mu.Unlock()
 	a.Repaint()
 	go func() {
 		<-term.Done()
-		a.S.ClosePane(p.Pane)
+		a.mu.Lock()
+		current := a.terms[key] == entry && !a.failedTerms[key]
+		a.mu.Unlock()
+		if current {
+			a.S.ClosePane(p.Pane)
+		}
 	}()
 }
 
@@ -1081,34 +1108,68 @@ func (a *App) terminalFailed(key, title string, err error) {
 	a.mu.Lock()
 	delete(a.starting, key)
 	a.failedTerms[key] = true
+	entry := a.terms[key]
+	delete(a.terms, key)
 	a.mu.Unlock()
+	if entry != nil {
+		_ = entry.term.Close()
+	}
 	a.toast(title, err.Error(), "error")
 }
 
-// collect detaches the views of panes that are no longer shown.
+// collect keeps recent open panes attached across tab switches, releasing
+// removed or replaced panes and the oldest views beyond the hidden cache limit.
 func (a *App) collect() {
 	_, tab := a.S.Active()
-	live := map[string]bool{}
+	visible := map[string]bool{}
 	if tab != nil {
 		for _, p := range a.S.Panes(tab.ID) {
-			live[p.Pane+"|"+p.Terminal] = true
+			visible[p.Pane+"|"+p.Terminal] = true
 		}
 	}
-	if a.find.key != "" && !live[a.find.key] && a.find.key != "peek|"+a.peek.addr {
+	live := map[string]bool{}
+	for _, sp := range a.S.Places() {
+		for _, tab := range sp.Tabs {
+			for _, p := range a.S.Panes(tab.ID) {
+				live[p.Pane+"|"+p.Terminal] = true
+			}
+		}
+	}
+	if a.find.key != "" && !visible[a.find.key] && a.find.key != "peek|"+a.peek.addr {
 		a.closeFind()
 	}
 	a.mu.Lock()
-	for key := range a.failedTerms {
+	for key := range a.starting {
 		if !live[key] {
+			delete(a.starting, key)
+		}
+	}
+	for key := range a.failedTerms {
+		if !visible[key] {
 			delete(a.failedTerms, key)
 		}
 	}
 	var gone []*paneTerm
+	var hidden []*paneTerm
 	for key, entry := range a.terms {
 		if !live[key] {
 			gone = append(gone, entry)
 			delete(a.terms, key)
+		} else if !visible[key] {
+			hidden = append(hidden, entry)
 		}
+	}
+	for len(hidden) > maxHiddenTerminals {
+		oldest := 0
+		for i, entry := range hidden {
+			if entry.lastUsed < hidden[oldest].lastUsed {
+				oldest = i
+			}
+		}
+		entry := hidden[oldest]
+		gone = append(gone, entry)
+		delete(a.terms, entry.key)
+		hidden = append(hidden[:oldest], hidden[oldest+1:]...)
 	}
 	a.mu.Unlock()
 	for _, entry := range gone {
@@ -1169,7 +1230,11 @@ func (a *App) applyTerminalTheme(th *Theme) {
 	}
 	if a.peek.term != nil {
 		// A peeked terminal is not a pane's, and follows the theme too.
-		views = append(views, &paneTerm{term: a.peek.term, conn: a.peek.conn})
+		peek := &paneTerm{term: a.peek.term}
+		if a.peek.conn != nil {
+			peek.conn = a.peek.conn
+		}
+		views = append(views, peek)
 	}
 	a.mu.Unlock()
 	for _, entry := range views {
@@ -1230,13 +1295,13 @@ func (a *App) statusBar(c *ui.Context) {
 			}
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				ui.Box(c).Size(6, 6).Radius(3).Background(t.Dim)
-				ui.Text(c, fmt.Sprintf("%d agents", len(agents))).FontSize(11.8).TextColor(t.Muted)
+				ui.Text(c, fmt.Sprintf("%d agents", len(agents))).FontSize(a.fontSize(11.8)).TextColor(t.Muted)
 				if needs > 0 {
-					ui.Text(c, fmt.Sprintf("· %d needs you", needs)).FontSize(11.8).TextColor(t.Blocked)
+					ui.Text(c, fmt.Sprintf("· %d needs you", needs)).FontSize(a.fontSize(11.8)).TextColor(t.Blocked)
 				}
 			})
 			ui.Spacer(c)
-			hint := ui.Text(c, paletteHint()).FontSize(11.8).TextColor(t.Dim)
+			hint := ui.Text(c, paletteHint()).FontSize(a.fontSize(11.8)).TextColor(t.Dim)
 			if hint.Clicked() {
 				a.OpenOverlay("palette")
 			}
@@ -1248,7 +1313,7 @@ func (a *App) statusItem(c *ui.Context, icon, label string) {
 	t := a.T
 	ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 		a.icon(c, icon, 13, t.Muted)
-		ui.Text(c, label).FontSize(11.8).TextColor(t.Muted)
+		ui.Text(c, label).FontSize(a.fontSize(11.8)).TextColor(t.Muted)
 	})
 }
 
@@ -1258,8 +1323,8 @@ func (a *App) emptyWork(c *ui.Context) {
 	ui.Box(c).Fill().Center().Children(func() {
 		ui.Column(c).Gap(10).AlignItems(ui.Center).Children(func() {
 			a.logo(c, 40)
-			ui.Text(c, "No spaces yet").FontSize(15).FontWeight(600).TextColor(t.Foreground)
-			ui.Text(c, "Press ⌘N for a new space, or use the sidebar.").FontSize(12.5).TextColor(t.Dim)
+			ui.Text(c, "No spaces yet").FontSize(a.fontSize(15)).FontWeight(600).TextColor(t.Foreground)
+			ui.Text(c, "Press ⌘N for a new space, or use the sidebar.").FontSize(a.fontSize(12.5)).TextColor(t.Dim)
 		})
 	})
 }
