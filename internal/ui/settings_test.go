@@ -24,6 +24,54 @@ func TestDefaultSettings(t *testing.T) {
 	}
 }
 
+func TestSettingsSearchOmitsUnimplementedSections(t *testing.T) {
+	app := NewApp(nil, ThemeByName("graphite"))
+	for _, query := range []string{"", "updates", "privacy", "channel", "automatic", "background", "herdr-core", "telemetry", "reports"} {
+		app.settings.Search = query
+		for _, result := range app.settingsResults() {
+			if result.Section == "updates" || result.Section == "privacy" {
+				t.Errorf("search %q advertised hidden setting %q", query, result.Title)
+			}
+		}
+	}
+}
+
+func TestSettingsHidesUnimplementedSections(t *testing.T) {
+	RegisterFonts()
+	for _, section := range []string{"look", "terminal", "machines", "alerts", "updates", "privacy"} {
+		t.Run(section, func(t *testing.T) {
+			app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+			app.Run("app.settings:" + section)
+			tt := myui.NewTester(app.View, 1280, 820)
+			tt.Frame()
+			for _, label := range []string{"Look", "Terminal", "Machines", "Alerts"} {
+				if _, ok := tt.Find(label); !ok {
+					t.Errorf("active section %q is missing", label)
+				}
+			}
+			for _, label := range []string{"Updates", "Privacy", "Channel", "Install automatically", "Check in the background", "Check now", "View notes  ›", "Anonymous usage counts", "View the report", "What would be sent", "Copy"} {
+				if _, ok := tt.Find(label); ok {
+					t.Errorf("placeholder %q is still visible", label)
+				}
+			}
+			want := section
+			if section == "updates" || section == "privacy" {
+				want = "look"
+			}
+			if app.settings.Section != want {
+				t.Errorf("selected section = %q, want %q", app.settings.Section, want)
+			}
+			body := map[string]string{
+				"look": "Appearance", "terminal": "Clipboard",
+				"machines": "Add machine", "alerts": "Done",
+			}[want]
+			if _, ok := tt.Find(body); !ok {
+				t.Errorf("section content %q is missing", body)
+			}
+		})
+	}
+}
+
 func TestSettingsResultsMatchThemeFirst(t *testing.T) {
 	a := &App{T: ThemeByName("graphite")}
 	a.settings = defaultSettings()

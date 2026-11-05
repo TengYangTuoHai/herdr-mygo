@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -28,45 +27,39 @@ type settingsEntry struct {
 var (
 	appearanceNames    = []string{"System", "Light", "Dark"}
 	optionAltNames     = []string{"Auto", "Left", "Right", "Off"} // legacy saved values; control hidden until MyGo supports them
-	updateChannelNames = []string{"Stable", "Preview"}
+	updateChannelNames = []string{"Stable", "Preview"}            // legacy saved values; controls hidden until an updater exists
 )
 
 // settingsSectionNames labels every section, in the nav's order.
 var settingsSectionNames = map[string]string{
 	"look": "Look", "terminal": "Terminal", "machines": "Machines",
-	"alerts": "Alerts", "updates": "Updates", "privacy": "Privacy",
+	"alerts": "Alerts",
 }
 
 // settingsSectionIcons is the icon each section's rows and results carry.
 var settingsSectionIcons = map[string]string{
 	"look": "sun", "terminal": "terminal", "machines": "server",
-	"alerts": "bell", "updates": "refresh-cw", "privacy": "shield",
+	"alerts": "bell",
 }
 
 // settingKeywords are what a person might type to find a setting whose name
 // does not contain the word itself.
 var settingKeywords = map[string]string{
-	"Theme":                   "appearance accent colors look",
-	"Appearance":              "theme light dark system mode",
-	"Accent":                  "theme color colors highlight",
-	"Interface font":          "font typeface size type",
-	"Terminal font":           "font typeface mono terminal",
-	"Zoom":                    "size scale bigger smaller",
-	"Clipboard":               "copy paste",
-	"Minimum contrast":        "contrast readability",
-	"Machines":                "ssh host server remote",
-	"Done":                    "alert sound toast finish complete",
-	"Needs you":               "alert sound toast approval question",
-	"Play a sound":            "sound audio alert",
-	"Done sound":              "sound audio alert",
-	"Needs you sound":         "sound audio alert",
-	"By agent":                "sound agent override",
-	"Channel":                 "update stable preview",
-	"Install automatically":   "update automatic download",
-	"Check in the background": "update check background",
-	"herdr-core":              "core hc version",
-	"Anonymous usage counts":  "telemetry privacy analytics",
-	"Reports":                 "telemetry privacy report",
+	"Theme":            "appearance accent colors look",
+	"Appearance":       "theme light dark system mode",
+	"Accent":           "theme color colors highlight",
+	"Interface font":   "font typeface size type",
+	"Terminal font":    "font typeface mono terminal",
+	"Zoom":             "size scale bigger smaller",
+	"Clipboard":        "copy paste",
+	"Minimum contrast": "contrast readability",
+	"Machines":         "ssh host server remote",
+	"Done":             "alert sound toast finish complete",
+	"Needs you":        "alert sound toast approval question",
+	"Play a sound":     "sound audio alert",
+	"Done sound":       "sound audio alert",
+	"Needs you sound":  "sound audio alert",
+	"By agent":         "sound agent override",
 }
 
 func onOff(on bool) string {
@@ -116,14 +109,6 @@ func (a *App) settingsEntries() []settingsEntry {
 		entry("alerts", "Done sound", "Plays when an agent finishes.", alertSoundLabel(s.DoneSound)),
 		entry("alerts", "Needs you sound", "Plays when an agent asks something.", alertSoundLabel(s.NeedsSound)),
 		entry("alerts", "By agent", "Turn a sound off for one agent without changing the rest.", a.agentSoundSummary()),
-
-		entry("updates", "Channel", "Stable, or preview releases early.", pick(updateChannelNames, s.UpdateChannel)),
-		entry("updates", "Install automatically", "Download and install when Herdr is not running.", onOff(s.AutoInstall)),
-		entry("updates", "Check in the background", "Once a day, without interrupting a terminal.", onOff(s.BackgroundCheck)),
-		entry("updates", "herdr-core", "The background program that runs your terminals.", "Connected"),
-
-		entry("privacy", "Anonymous usage counts", "Daily counts only: versions, machines, agents and commands.", onOff(s.Telemetry)),
-		entry("privacy", "Reports", "At most one a day. Nothing comes from herdr-core.", "Daily"),
 	}
 }
 
@@ -230,7 +215,7 @@ func minFloat(a, b float32) float32 {
 // chosen section's controls.
 func (a *App) settingsOverlay(c *ui.Context) {
 	t := a.T
-	if a.settings.Section == "" {
+	if _, ok := settingsSectionNames[a.settings.Section]; !ok {
 		a.settings.Section = "look"
 	}
 	width := minFloat(settingsWidth, a.W-80)
@@ -375,8 +360,6 @@ func (a *App) settingsNav(c *ui.Context) {
 		navGroup("Herdr")
 		navRow("machines", "Machines", "server")
 		navRow("alerts", "Alerts", "bell")
-		navRow("updates", "Updates", "refresh-cw")
-		navRow("privacy", "Privacy", "shield")
 
 		ui.Spacer(c)
 		ui.Box(c).Height(1).FillWidth().Background(t.Border)
@@ -487,10 +470,6 @@ func (a *App) settingsSection(c *ui.Context) {
 		a.settingsMachines(c)
 	case "alerts":
 		a.settingsAlerts(c)
-	case "updates":
-		a.settingsUpdates(c)
-	case "privacy":
-		a.settingsPrivacy(c)
 	default:
 		a.settingsLook(c)
 	}
@@ -1319,123 +1298,4 @@ func (a *App) settingsAlerts(c *ui.Context) {
 		note = "Sound is off. Toasts still appear when an agent in another space finishes or needs you."
 	}
 	a.settingsNote(c, "bell", note)
-}
-
-// settingsUpdates is the Updates section.
-func (a *App) settingsUpdates(c *ui.Context) {
-	t := a.T
-	a.settingsHead(c, "Updates", "Herdr updates itself. herdr-core updates alongside, without ending a terminal.")
-
-	a.settingsCard(c, func() {
-		ui.Row(c).FillWidth().Padding(16).Gap(14).AlignItems(ui.Center).Children(func() {
-			a.logo(c, 38)
-			ui.Column(c).Grow(1).Gap(2).Children(func() {
-				ui.Text(c, "Herdr "+settingsVersion).FontSize(a.fontSize(15)).FontWeight(600).
-					TextColor(t.Foreground)
-				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Box(c).Size(6, 6).Radius(3).Background(t.Ansi[2])
-					ui.Text(c, "Up to date").FontSize(a.fontSize(11.5)).TextColor(t.Muted)
-				})
-			})
-			a.settingsButton(c, "Check now", false, false, nil)
-		})
-		a.settingsDivider(c)
-		a.settingsRow(c, "What’s new", "Release notes for the version you are running.", func() {
-			a.settingsLink(c, "View notes  ›", nil)
-		})
-	})
-
-	a.settingsCard(c, func() {
-		a.settingsRow(c, "Channel", "Preview gets releases early. Homebrew installs stay on stable.", func() {
-			a.settingsSegmented(c, updateChannelNames, &a.settings.UpdateChannel)
-		})
-		a.settingsDivider(c)
-		a.settingsRow(c, "Install automatically", "Download and install when Herdr is not running.", func() {
-			a.settingsToggle(c, &a.settings.AutoInstall)
-		})
-		a.settingsDivider(c)
-		a.settingsRow(c, "Check in the background", "Once a day, without interrupting a terminal.", func() {
-			a.settingsToggle(c, &a.settings.BackgroundCheck)
-		})
-	})
-
-	a.settingsCard(c, func() {
-		a.settingsRow(c, "herdr-core", "Updates with Herdr. Terminals keep running through it.", func() {
-			color, text := t.Dim, "Not running"
-			if a.S != nil {
-				color, text = t.Ansi[2], "Connected"
-			}
-			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-				ui.Box(c).Size(6, 6).Radius(3).Background(color)
-				ui.Text(c, text).FontSize(a.fontSize(11.5)).TextColor(t.Muted)
-			})
-		})
-	})
-
-	a.settingsNote(c, "refresh-cw", "Source builds never check for updates.")
-}
-
-// settingsPrivacy is the Privacy section.
-func (a *App) settingsPrivacy(c *ui.Context) {
-	t := a.T
-	a.settingsHead(c, "Privacy", "What Herdr sends, and what it never touches.")
-
-	a.settingsCard(c, func() {
-		a.settingsRow(c, "Anonymous usage counts", "A daily count of versions, machines, agents, spaces, tabs and commands. No terminal content, file names or folder names.", func() {
-			a.settingsToggle(c, &a.settings.Telemetry)
-		})
-		a.settingsDivider(c)
-		a.settingsRow(c, "Reports", "At most one a day. Nothing comes from herdr-core, and nothing is sent from a source build.", func() {
-			a.settingsButton(c, "View the report", false, true, nil)
-		})
-	})
-
-	a.settingsCard(c, func() {
-		ui.Column(c).Padding(14, 16, 14, 16).Gap(10).Children(func() {
-			ui.Row(c).FillWidth().Gap(16).AlignItems(ui.Start).Children(func() {
-				ui.Column(c).Grow(1).Gap(2).Children(func() {
-					ui.Text(c, "What would be sent").FontSize(a.fontSize(13.5)).FontWeight(500).TextColor(t.Foreground)
-					ui.Text(c, "A report like this goes out at most once a day. This is the whole file.").
-						FontSize(a.fontSize(11.5)).TextColor(t.Dim).Wrap()
-				})
-				a.settingsLink(c, "Copy", nil)
-			})
-			block := ui.Box(c).FillWidth().MinHeight(150).Radius(9).Border(1, t.Border).
-				Background(Alpha(t.Foreground, 0.045)).Padding(12, 14)
-			block.Children(func() {
-				ui.Text(c, a.settingsReport()).Font(TerminalFont).FontSize(a.fontSize(10.5)).
-					TextColor(t.Muted).Wrap()
-			})
-			a.settingsNote(c, "shield", "Terminal text, names and herdr-core data are never part of it.")
-		})
-	})
-
-	ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-		a.icon(c, "file", 12, t.Dim)
-		ui.Text(c, "DO_NOT_TRACK=1").Font(TerminalFont).FontSize(a.fontSize(10.5)).TextColor(t.Muted)
-		ui.Text(c, "or").FontSize(a.fontSize(11)).TextColor(t.Dim)
-		ui.Text(c, "HERDR_TELEMETRY=0").Font(TerminalFont).FontSize(a.fontSize(10.5)).TextColor(t.Muted)
-		ui.Text(c, "turns it off for one run.").FontSize(a.fontSize(11)).TextColor(t.Dim)
-	})
-}
-
-// settingsReport is the report the Privacy section would send, from this
-// session's own counts.
-func (a *App) settingsReport() string {
-	agents, spaces, tabs, machines := 0, 0, 0, 0
-	if a.S != nil {
-		agents = len(a.S.Agents())
-		spaces = len(a.S.Places())
-		tabs = len(a.S.Tabs())
-		machines = len(a.S.Machines())
-	}
-	return fmt.Sprintf(`{
-  "version": "%s",
-  "os": "%s %s",
-  "agents": %d,
-  "spaces": %d,
-  "tabs": %d,
-  "machines": %d,
-  "layout": "main"
-}`, settingsVersion, runtime.GOOS, runtime.GOARCH, agents, spaces, tabs, machines)
 }

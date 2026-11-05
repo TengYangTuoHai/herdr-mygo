@@ -105,7 +105,7 @@ key, through Ghostty's key protocol handling in MyGo's terminal plugin.
 - Command palette with fuzzy search, group headers and key chips
 - Go-to-space-or-tab picker, new-tab menu, right-click menus on spaces,
   tabs and panes, prompt dialogs, toasts
-- Settings for Look, Terminal, Machines, Alerts, Updates and Privacy, with
+- Settings for Look, Terminal, Machines and Alerts, with
   search (⌘F), theme previews and live controls; welcome and the keys list.
   Appearance follows the desktop, or stays light or dark. Light and dark
   choices persist separately in `light_theme` and `dark_theme`; older
@@ -161,8 +161,8 @@ are JavaScript mods. This port draws Herdr's shipped interface in Go, so:
   except the commit box.
 - Option as Alt is hidden while MyGo v0.7.4 lacks runtime and left/right
   Option control. Existing saved values are retained for future support.
-- The Updates and Privacy controls are presentational: the app has no
-  update check or telemetry yet.
+- Updates and Privacy are hidden from Settings and its search until an updater
+  and telemetry exist. Existing saved values are retained for future support.
 
 ## How it is checked
 
