@@ -44,13 +44,27 @@ To build macOS, Windows and Linux for both arm64 and amd64 in one run:
 
 Run with Bash (on Windows, use Git Bash or WSL). The script works from any
 working directory and writes each target to `build/<os>-<arch>/`, with macOS
-named `darwin`: macOS `.app` bundles, Windows `.exe` files, and Linux binaries
-and packages. MyGo includes the required native libraries. DMG and Windows
-installer creation are skipped by default, so NSIS is not required. These
-are cross-compiled builds; running each app requires its target OS and `hc`.
-Additional MyGo build flags can be passed through, for example
-`./scripts/build-all.sh -o build/release` or, on macOS,
-`./scripts/build-all.sh -skip-dmg=false` to also create disk images.
+named `darwin`. MyGo includes the required native libraries and creates these
+packages for both arm64 and amd64:
+
+| Target | Packages | Build host requirements |
+|---|---|---|
+| macOS | `.app` bundle and `herdr-0.1.0-<arch>.dmg` | DMGs and signing require macOS; other hosts still build the `.app` |
+| Windows | `.exe` and `herdr-setup-0.1.0-<arch>.exe` installer | NSIS (`makensis`); MyGo downloads it automatically on Windows if missing |
+| Linux | `.deb`, `.tar.gz`, a separate `install.sh`, and `PKGBUILD` | No extra packaging tools; building an Arch package from `PKGBUILD` requires `makepkg` on Arch Linux |
+
+On macOS or Linux, install NSIS to also create Windows installers (for example,
+`brew install nsis` on macOS or `sudo apt install nsis` on Debian/Ubuntu).
+Without NSIS on those hosts, MyGo warns and skips Windows installers. It also
+warns and skips DMGs on hosts other than macOS. macOS signing is ad hoc by
+default; distribution with Developer ID signing and notarization requires
+configuring those in MyGo.
+
+These are cross-compiled builds; running each app requires its target OS and
+`hc`, which these packages do not bundle. Additional MyGo build flags can be
+passed through, for example `./scripts/build-all.sh -o build/release` or
+`./scripts/build-all.sh -skip-dmg -skip-installer` to omit DMG and Windows
+installer creation explicitly.
 
 ## What is here
 
