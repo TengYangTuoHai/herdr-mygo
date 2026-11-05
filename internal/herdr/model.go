@@ -280,6 +280,9 @@ found:
 	if where == "" {
 		return "~"
 	}
+	// Remote paths use their machine's separators, regardless of our OS.
+	where = strings.ReplaceAll(where, "\\", "/")
+	home = strings.ReplaceAll(home, "\\", "/")
 	where = strings.TrimRight(where, "/")
 	if where == "" {
 		return "/"

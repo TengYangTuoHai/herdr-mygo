@@ -14,6 +14,7 @@ func (a *App) currentTerminalOptions() terminal.Options {
 	defer a.mu.Unlock()
 	return terminal.Options{
 		Font:             a.terminalStyle,
+		CopyOnSelect:     terminal.CopyOnSelectClipboard,
 		NoClipboardWrite: !a.terminalPrefs.clipboard,
 		MinimumContrast:  a.terminalPrefs.contrast,
 	}
