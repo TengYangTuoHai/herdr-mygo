@@ -70,6 +70,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Run tests
+        run: go test ./...
+
       - name: Apply package version
         env:
           BUILD_VERSION: ${{ needs.version.outputs.version }}
