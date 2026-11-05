@@ -222,7 +222,8 @@ func (a *App) View(c *ui.Context) {
 func (a *App) sidebar(c *ui.Context) {
 	t := a.T
 	// listHeight is what the spaces and agents lists share, the divider aside.
-	listHeight := a.H - 46 - sidebarFooterHeight - 1
+	headerHeight, _, _, _ := a.brandLayout(c)
+	listHeight := a.H - headerHeight - sidebarFooterHeight - 1
 	if listHeight < 90 {
 		listHeight = 90
 	}
@@ -268,8 +269,9 @@ func (a *App) sidebar(c *ui.Context) {
 // splitHandle drags the line between the spaces and agents lists.
 func (a *App) splitHandle(c *ui.Context, spacesHeight, listHeight float32) {
 	t := a.T
+	headerHeight, _, _, _ := a.brandLayout(c)
 	ui.Overlay(c, func() {
-		handle := ui.Box(c).Absolute().Top(46 + spacesHeight - 3).Left(0).
+		handle := ui.Box(c).Absolute().Top(headerHeight + spacesHeight - 3).Left(0).
 			Width(a.sidebarShown).Height(6).Cursor(ui.CursorResizeNS)
 		// Dragged reports the pointer's horizontal travel first: the divider
 		// follows its vertical one, and stays lit while the press lasts.
@@ -307,14 +309,31 @@ func splitLimits(listHeight float32) (min, max float32) {
 	return min, max
 }
 
-// brand is the row with the logo, search and the sidebar toggle.
-func (a *App) brand(c *ui.Context) {
-	t := a.T
-	left := float32(14)
+// brandLayout keeps the brand and its actions clear of native title buttons.
+// Wide controls on the left can leave too little room in a narrow sidebar;
+// in that case the brand sits below the controls instead.
+func (a *App) brandLayout(c *ui.Context) (height, top, left, right float32) {
+	bar := c.TitleBar()
+	left = 14
 	if isMac() {
 		left = 76
 	}
-	row := ui.Row(c).Height(46).FillWidth().Background(t.Chrome).Padding(0, 10, 0, left).Gap(4).AlignItems(ui.Center).DragWindow()
+	left = max(left, bar.Left+10)
+	right = max(float32(10), bar.Right-(a.W-a.sidebarShown)+10)
+	height = max(float32(46), bar.Height)
+	if bar.Height > 0 && a.sidebarShown-left-right < 130 {
+		top, left, right = bar.Height, 14, 10
+		height = top + 46
+	}
+	return
+}
+
+// brand is the row with the logo, search and the sidebar toggle.
+func (a *App) brand(c *ui.Context) {
+	t := a.T
+	height, top, left, right := a.brandLayout(c)
+	row := ui.Row(c).Height(height).FillWidth().Background(t.Chrome).
+		Padding(top, right, 0, left).Gap(4).AlignItems(ui.Center).DragWindow()
 	row.Children(func() {
 		ui.Row(c).Grow(1).Gap(8).AlignItems(ui.Center).Children(func() {
 			a.logo(c, 20)
@@ -463,8 +482,16 @@ func (a *App) tabsBar(c *ui.Context) {
 			left = room
 		}
 	}
-	ui.Column(c).Height(42).FillWidth().Children(func() {
-		ui.Row(c).Grow(1).FillWidth().Background(t.Chrome).Padding(0, 10, 0, left).Gap(3).AlignItems(ui.Center).DragWindow().Children(func() {
+	bar := c.TitleBar()
+	start := a.sidebarShown
+	if start > 0 {
+		start++ // the border between the sidebar and the tabs
+	}
+	// Native controls overlay either edge on Linux and the right on Windows.
+	// Only reserve the part of the left controls that reaches this row.
+	left = max(left, bar.Left-start+10)
+	ui.Column(c).Height(max(float32(42), bar.Height+1)).FillWidth().Children(func() {
+		ui.Row(c).Grow(1).FillWidth().Background(t.Chrome).Padding(0, bar.Right+10, 0, left).Gap(3).AlignItems(ui.Center).DragWindow().Children(func() {
 			if !a.SidebarOpen {
 				a.iconButton(c, "sidebar", 26, "Show sidebar", a.toggleSidebar)
 			}

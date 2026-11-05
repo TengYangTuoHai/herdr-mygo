@@ -29,6 +29,7 @@ func main() {
 			Height:               820,
 			StateKey:             "main",
 			TitleBarStyle:        mygo.TitleBarHidden,
+			TitleBarHeight:       42,
 			TrafficLightPosition: &point,
 			BackgroundColor:      "light-dark(#f6f7f9, #131518)",
 			Content:              ui.View(app.View),
