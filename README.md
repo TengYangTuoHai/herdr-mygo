@@ -122,20 +122,32 @@ core staging hook. The macOS runner creates DMGs, and the Windows runner can
 download NSIS automatically to create the Windows installer.
 
 The run uploads three artifacts, `herdr-darwin`, `herdr-windows` and
-`herdr-linux`, retained for seven days. They contain five archives named
-`herdr-<version>-<os>-<arch>.tar.gz` in total. Each archive contains the complete
-`build/<os>-<arch>/` directory, including its installer or packages, bundled core,
-notices and native libraries. Archiving the directories preserves executable
-permissions when downloaded from Actions. Extract the archive, then use the
-installer or keep the complete app directory together.
+`herdr-linux`, retained for seven days. They contain only the five native
+installers:
 
-After every build succeeds, a push to `master` publishes the five complete
-target archives as GitHub Release assets in a prerelease. The version is
+| Platform | Release assets |
+|---|---|
+| macOS | `herdr-<version>-arm64.dmg`, `herdr-<version>-amd64.dmg` |
+| Windows | `herdr-setup-<version>-amd64.exe` |
+| Linux (Debian/Ubuntu) | `herdr_<debian-version>_arm64.deb`, `herdr_<debian-version>_amd64.deb` |
+
+Each installer includes the app, bundled core, notices and native libraries.
+Download the matching installer directly from the release. The workflow fails
+if any expected installer is missing or empty. Complete build directories,
+portable archives, `install.sh` and Arch `PKGBUILD` recipes are not release
+assets; they remain local MyGo build outputs. A `PKGBUILD` is a recipe, not a
+built Arch installer. Actions wraps its downloadable artifacts in ZIP files;
+GitHub Release assets are the native installer files themselves.
+
+After every build succeeds, a push to `master` publishes these five installers
+as GitHub Release assets in a prerelease. The version is
 `<base>-dev.<run number>.g<short commit SHA>`, for example
 `0.1.0-dev.42.gabcdef1`, and its tag is `v0.1.0-dev.42.gabcdef1`. Every target
-uses that same version in its native package metadata, installer names and
-archive name. The release points to the exact commit that was built. Separate
-workflow runs get separate versions; reruns of the same run use the same version.
+uses that same resolved version; MyGo converts Debian prerelease versions to
+use `~` before the suffix (for example `0.1.0~dev.42.gabcdef1`) and replaces
+hyphens within the suffix with dots. The release points to the exact commit
+that was built. Separate workflow runs get separate versions; reruns of the
+same run use the same version.
 
 Pushing a `v*` tag also runs the builds and publishes a versioned GitHub Release.
 The tag must match `mygo.json`'s version exactly, such as `v0.1.0` for `0.1.0`;
