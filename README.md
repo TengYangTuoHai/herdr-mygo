@@ -36,6 +36,22 @@ go tool mygo build
 The first run downloads MyGo's `libghostty-vt` (the terminal emulator library
 the terminal plugin uses, the same Ghostty VT the original app uses).
 
+To build macOS, Windows and Linux for both arm64 and amd64 in one run:
+
+```sh
+./scripts/build-all.sh
+```
+
+Run with Bash (on Windows, use Git Bash or WSL). The script works from any
+working directory and writes each target to `build/<os>-<arch>/`, with macOS
+named `darwin`: macOS `.app` bundles, Windows `.exe` files, and Linux binaries
+and packages. MyGo includes the required native libraries. DMG and Windows
+installer creation are skipped by default, so NSIS is not required. These
+are cross-compiled builds; running each app requires its target OS and `hc`.
+Additional MyGo build flags can be passed through, for example
+`./scripts/build-all.sh -o build/release` or, on macOS,
+`./scripts/build-all.sh -skip-dmg=false` to also create disk images.
+
 ## What is here
 
 | Files | What it does |
