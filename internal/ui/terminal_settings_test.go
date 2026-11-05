@@ -13,6 +13,8 @@ import (
 
 	"github.com/egoist/mygo/plugins/terminal"
 	myui "github.com/egoist/mygo/ui"
+
+	"herdr-mygo/internal/herdr"
 )
 
 type terminalSettingsConn struct {
@@ -101,6 +103,65 @@ func TestSavedClipboardPermissionReachesNewTerminals(t *testing.T) {
 			tt.Frame()
 			if got := conn.waitFor(t, "manual paste"); !strings.HasSuffix(got, "manual paste") {
 				t.Fatalf("manual paste did not reach program: %q", got)
+			}
+		})
+	}
+}
+
+func TestPaneSelectionCopiesToLocalClipboard(t *testing.T) {
+	for _, allow := range []bool{false, true} {
+		t.Run(map[bool]string{false: "program writes denied", true: "program writes allowed"}[allow], func(t *testing.T) {
+			RegisterFonts()
+			app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+			app.terminalPrefs.clipboard = allow
+			conn := newPeekConn()
+			opts := app.currentTerminalOptions()
+			opts.Conn, opts.Theme = conn, terminalTheme(app.T)
+			term, err := terminal.New(opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer term.Close()
+			pane := herdr.PaneInfo{Pane: "remote-pane", Terminal: "pc/t1", Focused: true}
+			key := pane.Pane + "|" + pane.Terminal
+			app.terms[key] = &paneTerm{term: term}
+			tt := myui.NewTester(func(c *myui.Context) { app.terminalView(c, pane) }, 600, 200)
+			term.Feed([]byte("PS C:\\Users\\user> Windows pane 中文"))
+			tt.Frame()
+			tt.SetClipboard("previous clipboard")
+			// Drag across the first line, then release without pressing Copy.
+			tt.Press(8, 12)
+			tt.Move(450, 12)
+			tt.Release(450, 12)
+			tt.Frame()
+			want := "PS C:\\Users\\user> Windows pane 中文"
+			if out := os.Getenv("PANE_COPY_SHOT_OUT"); out != "" && allow {
+				file, err := os.Create(out)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer file.Close()
+				if err := png.Encode(file, tt.Image()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got := strings.TrimSpace(tt.Clipboard()); got != want {
+				t.Errorf("selected text = %q, want %q in local clipboard", got, want)
+			}
+			// Explicit Copy must still work with the selection left in place.
+			tt.SetClipboard("previous clipboard")
+			mods := myui.Ctrl | myui.Shift
+			if runtime.GOOS == "darwin" {
+				mods = myui.Cmd
+			}
+			tt.Key(mods, myui.KeyC)
+			if got := strings.TrimSpace(tt.Clipboard()); got != want {
+				t.Errorf("copy shortcut = %q, want %q", got, want)
+			}
+			tt.SetClipboard("previous clipboard")
+			tt.Command("copy")
+			if got := strings.TrimSpace(tt.Clipboard()); got != want {
+				t.Errorf("explicit copy = %q, want %q", got, want)
 			}
 		})
 	}
