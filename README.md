@@ -95,8 +95,8 @@ On macOS or Linux, install NSIS to also create Windows installers (for example,
 `brew install nsis` on macOS or `sudo apt install nsis` on Debian/Ubuntu).
 Without NSIS on those hosts, MyGo warns and skips Windows installers. It also
 warns and skips DMGs on hosts other than macOS. macOS signing is ad hoc by
-default; distribution with Developer ID signing and notarization requires
-configuring those in MyGo.
+default; see [macOS distribution and Gatekeeper](#macos-distribution-and-gatekeeper)
+for the current download and opening instructions.
 
 These are cross-compiled builds; running each app requires its target OS. The
 script builds the UI and packages with the matching core resources included
@@ -109,6 +109,61 @@ Additional MyGo build flags can be passed through, for example
 `./scripts/build-all.sh -o build/release` or
 `./scripts/build-all.sh -skip-dmg -skip-installer` to omit DMG and Windows
 installer creation explicitly.
+
+## macOS distribution and Gatekeeper
+
+This project's current release path does not use an Apple Developer Program
+account. The macOS app uses an ad hoc signature and is **not notarized by
+Apple**. You can publish the complete DMGs produced locally or by CI without
+Apple credentials, but downloaders should expect Gatekeeper to block the first
+open with a warning such as **“Apple could not verify ‘Herdr’ is free of malware
+that may harm your Mac or compromise your privacy.”** The exact wording varies
+by macOS version. These packages do not pass the default Gatekeeper checks.
+
+A local `go tool mygo build -platform darwin/arm64` build can run on the build
+machine because local builds normally have no `com.apple.quarantine` attribute.
+Browsers generally add this attribute to downloads, and it can follow an app
+copied from a DMG or extracted from an archive. Both local and CI builds use
+ad hoc signing; the local build is not more trusted by Apple. Re-uploading a
+local build, changing the archive format, or removing quarantine before
+upload does not prevent the recipient's browser from quarantining the download.
+A previous manual approval can also affect whether a Mac prompts again.
+
+If you trust the source and choose to run this unnotarized release, follow
+Apple's [Open Anyway instructions](https://support.apple.com/en-us/102445):
+
+1. Download the matching `herdr-<version>-arm64.dmg` for Apple silicon or
+   `herdr-<version>-amd64.dmg` for an Intel Mac. Open the DMG and drag
+   **Herdr** onto **Applications**.
+2. In Finder, open **Applications** and double-click **Herdr**. When macOS
+   shows the verification warning, dismiss it with **Done** or **OK**,
+   depending on the version; keep the app rather than moving it to the Trash.
+   You must try opening the app before the next step.
+3. Open the **Apple menu → System Settings → Privacy & Security**. Scroll
+   down to **Security**, find the message that Herdr was blocked, and click
+   **Open Anyway** (Chinese: **仍要打开**). If the button is missing, try
+   opening Herdr again, then return to this settings page. On a managed Mac,
+   your administrator may restrict these settings.
+4. When the warning appears again, click **Open** to confirm. Authenticate
+   if macOS asks. This saves an exception for the app, so subsequent launches
+   can use the usual double-click. A new build may require approval again.
+
+This is a manual exception on each recipient's Mac; the package remains
+unnotarized. These steps apply to the developer-verification warning above.
+If macOS instead reports detected malware or a damaged app, stop and obtain
+a fresh copy or contact the maintainer. No terminal command or global
+Gatekeeper setting change is needed for the Open Anyway procedure.
+
+If the project later enrolls in the Apple Developer Program, it can issue
+releases signed with a **Developer ID Application** certificate and private
+key, submitted to Apple's notarization service, and shipped with the accepted
+tickets stapled to the DMGs. MyGo supports that process, but the release Mac
+or CI must first be configured with the actual certificate and notarization
+credentials, and the resulting downloaded packages must be verified.
+An **Apple Development** certificate alone does not provide this distribution
+trust. Only publishing those signed and notarized builds would change the
+current Gatekeeper experience; a normal first-open confirmation for a
+downloaded app can still appear afterward.
 
 ## GitHub Actions packages
 
@@ -156,9 +211,9 @@ suffix, such as `0.2.0-rc.1`, produces a prerelease. Other branches do not trigg
 automatic builds or releases. Manual runs build the same development packages
 and only upload artifacts. The release job uses the repository's built-in
 `GITHUB_TOKEN` with `contents: write`; no additional release secret is needed.
-macOS builds use the existing ad hoc signing configuration; Developer ID
-signing and notarization still require separate Apple credentials and MyGo
-configuration.
+macOS packages use the current ad hoc signing configuration and are not
+notarized. Follow the [Open Anyway procedure](#macos-distribution-and-gatekeeper)
+after downloading; no Apple credentials are required for this release path.
 
 Standard hosted runner compute is free for public repositories; artifact and
 cache storage have separate allowances. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
