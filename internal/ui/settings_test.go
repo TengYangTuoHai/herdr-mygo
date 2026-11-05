@@ -1,12 +1,47 @@
 package ui
 
 import (
+	"image/png"
+	"os"
 	"testing"
 
+	"github.com/egoist/mygo"
 	myui "github.com/egoist/mygo/ui"
 
 	"herdr-mygo/internal/herdr"
 )
+
+func TestSettingsShowsBuildVersion(t *testing.T) {
+	RegisterFonts()
+	previous := mygo.App.Version()
+	t.Cleanup(func() { mygo.App.SetVersion(previous) })
+	for _, version := range []string{"", "0.2.0", "0.2.0-dev.42.gabcdef1"} {
+		mygo.App.SetVersion(version)
+		app := NewApp(&herdr.Session{}, ThemeByName("graphite"))
+		app.Run("app.settings:look")
+		tt := myui.NewTester(app.View, 1280, 820)
+		tt.Frame()
+		want := version
+		if want == "" {
+			want = "dev"
+		}
+		if !tt.HasText(want) {
+			t.Errorf("settings did not show build version %q", want)
+		}
+		if path := os.Getenv("SETTINGS_VERSION_SHOT"); path != "" && version == "0.2.0-dev.42.gabcdef1" {
+			f, err := os.Create(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := png.Encode(f, tt.Image()); err != nil {
+				t.Fatal(err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
 
 func TestDefaultSettings(t *testing.T) {
 	s := defaultSettings()

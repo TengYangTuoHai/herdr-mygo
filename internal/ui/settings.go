@@ -197,7 +197,6 @@ func (a *App) closeSettingsSearch() {
 }
 
 const (
-	settingsVersion   = "0.1.0"
 	settingsWidth     = float32(1080)
 	settingsHeight    = float32(720)
 	settingsNavWidth  = float32(224)
@@ -367,7 +366,11 @@ func (a *App) settingsNav(c *ui.Context) {
 			a.logo(c, 18)
 			ui.Text(c, "Herdr").FontSize(a.fontSize(11.5)).TextColor(t.Muted)
 			ui.Spacer(c)
-			ui.Text(c, settingsVersion).Font(TerminalFont).FontSize(a.fontSize(10.5)).TextColor(t.Dim)
+			version := mygo.App.Version()
+			if version == "" {
+				version = "dev"
+			}
+			ui.Text(c, version).Font(TerminalFont).FontSize(a.fontSize(10.5)).TextColor(t.Dim)
 		})
 	})
 }
