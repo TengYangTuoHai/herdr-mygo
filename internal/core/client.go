@@ -101,6 +101,7 @@ func Connect(bin string) (*Client, error) {
 		}
 	}
 	cmd := exec.Command(bin, "connect")
+	configureHCProcess(cmd)
 	cmd.Env = hcEnvironment(cmd.Path)
 	cmd.Stderr = os.Stderr
 	stdin, err := cmd.StdinPipe()
